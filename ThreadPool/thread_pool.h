@@ -5,6 +5,8 @@
 #include <map>
 #include <list>
 #include <string>
+#include <vector>
+#include <deque>
 
 namespace nemo {
 	class ThreadPoolCallback;
@@ -12,121 +14,80 @@ namespace nemo {
 }
 
 class nemo::ThreadPoolCallback {
-private:
-	void operator=(const ThreadPoolCallback & cb) {
-		//..
+public:
+	ThreadPoolCallback() {
+
 	}
 
 	ThreadPoolCallback(const ThreadPoolCallback & cb) {
 		//..
 	}
 
-public:
-	ThreadPoolCallback() {
-
-	}
-
 	virtual ~ThreadPoolCallback() {
 
 	}
 
-	virtual void run(void) {
+	virtual void operator=(const ThreadPoolCallback & cb) {
+		//..
+	}
+
+	virtual void operator()(void) {
 		//...
 	}
 };
 
 class nemo::ThreadPool {
-public:
-	enum Status { RUNNING, SUSPEND, HALT };
-	
 private:
-	enum DEFAULT_SLEEP {TIME = 33};
+	typedef boost::shared_ptr<ThreadPoolCallback> CallbackPtr;
+	typedef boost::shared_ptr<boost::thread> ThreadPtr;
 
-	int minThreadNum;
-	int maxThreadNum;
-	int curThreadNum;
-	Status status;
+	enum Message {Run,Suspend,Halt,Block,Unblock,Invoke,CreateThread};
 	
-	std::list<boost::shared_ptr<boost::thread>> threadList;
-	boost::shared_mutex eventLock;
-	std::list<boost::shared_ptr<ThreadPoolCallback>> eventList;
 
-	void workThread(void) {
-		while (status != Status::HALT) {
-			if (status == Status::SUSPEND) {
-				boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-				continue;
-			}
-			
-			boost::shared_ptr<ThreadPoolCallback> ptr = NULL;
+	struct TP_Event {
+		Message msg;
+		CallbackPtr callback;
+	};
 
-			eventLock.lock();
-			if (eventList.size()) {
-				ptr = *(eventList.begin());
-				eventList.pop_front();
-			}
-			eventLock.unlock();
-			
-			//run callback
-			if (!ptr) {
-				boost::this_thread::sleep(boost::posix_time::milliseconds(DEFAULT_SLEEP::TIME));
-			}
-			else {
-				ptr->run();
+	struct TP_ThreadData {
+		std::list<TP_Event> eventList;
+		boost::shared_mutex threadLock;
+		ThreadPtr threadPtr;
+
+		void postEvent(const TP_Event & e) {
+			eventList.push_back(e);
+		}
+	};
+
+	typedef std::list<TP_ThreadData> WorkThreadList;
+
+	TP_ThreadData daemonData;
+	WorkThreadList workThreadList;
+
+	void daemonThread(void) {
+		TP_Event ev;
+		while (true) {
+			daemonData.threadLock.lock_shared();
+			ev = *(daemonData.eventList.begin());
+			daemonData.eventList.pop_front();
+			daemonData.threadLock.unlock_shared();
+
+			switch (ev.msg) {
+			case Message::CreateThread:
+
+				break;
+			default:
+				break;
 			}
 		}
 	}
 
 public:
 	ThreadPool() {
-		minThreadNum = 4;
-		maxThreadNum = 4;
-		curThreadNum = 4;
-		status = Status::SUSPEND;
-
-		for (int i = 0; i < minThreadNum; ++i) {
-			boost::shared_ptr<boost::thread> ptr = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&ThreadPool::workThread, this)));
-			threadList.push_back(ptr);
-		}
+		daemonData.threadPtr = ThreadPtr(new boost::thread(&ThreadPool::daemonThread, this));
 	}
 
-	virtual ~ThreadPool() {
-		if (status != Status::HALT) {
-			stop();
-		}
-	}
-
-	void setStatus(Status st) {
-		if (st == Status::HALT)
-			return;
-		status = st;
-	}
-
-	Status getStatus(void) {
-		return status;
-	}
-
-	void run(void) {
-		status = Status::RUNNING;		
-	}
-
-	void stop(void) {
-		status = Status::HALT;
-		std::list<boost::shared_ptr<boost::thread>>::iterator it = threadList.begin();
-		std::list<boost::shared_ptr<boost::thread>>::iterator end = threadList.end();
-		while (it != end) {
-			(*it)->join();
-			it++;
-		}
-		threadList.clear();
-		eventList.clear();
-	}
-
-	bool addEvent(const boost::shared_ptr<ThreadPoolCallback> & ptr) {
-		bool ret = true;;
-		eventLock.lock();
-		eventList.push_back(ptr);
-		eventLock.unlock();
-		return ret;
+	~ThreadPool() {
+		daemonData.threadPtr->join();
 	}
 };
