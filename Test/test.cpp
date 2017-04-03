@@ -12,6 +12,10 @@ using namespace std;
 using namespace boost;
 using namespace boost::asio;
 
+struct kk {
+	int x = 10;
+};
+
 class st {
 public:
 	int a;
@@ -27,18 +31,19 @@ public:
 		puts("dddd");
 	}
 
-	void show() {
+	void show(kk k) {
 		puts("show");
+		cout << k.x << endl;
+	}
+
+	void run() {
+		kk k;
+		bind(&st::show, this, k);
 	}
 };
 
 int main(void) {
-	list<boost::shared_ptr<st>> l;
-	for (int i = 0; i < 3; ++i) {
-		l.push_back(boost::shared_ptr<st>(new st));
-	}
-	puts("111");
-	l.pop_back();
-	puts("2222");
+	st s;
+	s.run();
 	return 0;
 }
