@@ -22,6 +22,14 @@ private:
 	}
 
 public:
+	ThreadPoolCallback() {
+
+	}
+
+	virtual ~ThreadPoolCallback() {
+
+	}
+
 	virtual void run(void) {
 		//...
 	}
@@ -32,7 +40,7 @@ public:
 	enum Status { RUNNING, SUSPEND, HALT };
 	
 private:
-	enum DEFAULT_SLEEP {TIME = 1000};
+	enum DEFAULT_SLEEP {TIME = 33};
 
 	int minThreadNum;
 	int maxThreadNum;
@@ -46,11 +54,11 @@ private:
 	void workThread(void) {
 		while (status != Status::HALT) {
 			if (status == Status::SUSPEND) {
-				boost::this_thread::sleep(boost::posix_time::milliseconds(DEFAULT_SLEEP::TIME));
+				boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 				continue;
 			}
 			
-			boost::shared_ptr<ThreadPoolCallback> ptr;
+			boost::shared_ptr<ThreadPoolCallback> ptr = NULL;
 
 			eventLock.lock();
 			if (eventList.size()) {
@@ -58,8 +66,14 @@ private:
 				eventList.pop_front();
 			}
 			eventLock.unlock();
-
-			ptr->run();
+			
+			//run callback
+			if (!ptr) {
+				ptr->run();
+			}
+			else {
+				boost::this_thread::sleep(boost::posix_time::milliseconds(DEFAULT_SLEEP::TIME));
+			}
 		}
 	}
 
@@ -71,14 +85,14 @@ public:
 		status = Status::SUSPEND;
 
 		for (int i = 0; i < minThreadNum; ++i) {
-			threadList.push_back(boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&ThreadPool::workThread, this))));
+			boost::shared_ptr<boost::thread> ptr = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&ThreadPool::workThread, this)));
+			threadList.push_back(ptr);
 		}
 	}
 
 	virtual ~ThreadPool() {
 		if (status != Status::HALT) {
 			stop();
-			status = Status::HALT;
 		}
 	}
 
