@@ -69,10 +69,10 @@ private:
 			
 			//run callback
 			if (!ptr) {
-				ptr->run();
+				boost::this_thread::sleep(boost::posix_time::milliseconds(DEFAULT_SLEEP::TIME));
 			}
 			else {
-				boost::this_thread::sleep(boost::posix_time::milliseconds(DEFAULT_SLEEP::TIME));
+				ptr->run();
 			}
 		}
 	}
