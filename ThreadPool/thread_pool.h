@@ -76,30 +76,63 @@ private:
 	void workThread(WorkThreadArg arg) {
 		TP_Event ev;
 		while (true) {
-			break;
+			bool sleepFlag = false;
+			arg->threadLock.lock_shared();
+			if (arg->eventList.size()) {
+				ev = *(arg->eventList.begin());
+				arg->eventList.pop_front();
+			}
+			else {
+				sleepFlag = true;
+			}
+			arg->threadLock.unlock_shared();
+
+			if (!sleepFlag) {
+				switch (ev.msg) {
+				case Message::Invoke:
+
+					break;
+				default:
+					break;
+				}
+			}
+			else {
+				boost::this_thread::sleep(boost::posix_time::millisec(30));
+			}
 		}
 	}
 
 	void daemonThread(void) {
 		TP_Event ev;
 		while (true) {
+			bool isEmptyList = false;
 			daemonData.threadLock.lock();
-			ev = *(daemonData.eventList.begin());
-			daemonData.eventList.pop_front();
+			if (daemonData.eventList.size()) {
+				ev = *(daemonData.eventList.begin());
+				daemonData.eventList.pop_front();
+			}
+			else {
+				isEmptyList = true;
+			}
 			daemonData.threadLock.unlock();
 
-			switch (ev.msg) {
-			case Message::CreateThread: {
-					WorkThreadArg arg;
-					arg->threadLock.lock();
-					arg->status = Status::SUSPEND;
-					arg->threadPtr = ThreadPtr(new boost::thread(boost::bind(&ThreadPool::workThread, this, arg)));
-					workThreadList.push_back(*arg);
-					curThreadNum += 1;
+			if (!isEmptyList) {
+				switch (ev.msg) {
+				case Message::CreateThread: {
+						WorkThreadArg arg;
+						arg->threadLock.lock();
+						arg->status = Status::SUSPEND;
+						arg->threadPtr = ThreadPtr(new boost::thread(boost::bind(&ThreadPool::workThread, this, arg)));
+						workThreadList.push_back(*arg);
+						curThreadNum += 1;
+					}
+					break;
+				default:
+					break;
 				}
-				break;
-			default:
-				break;
+			}
+			else {
+
 			}
 		}
 	}
