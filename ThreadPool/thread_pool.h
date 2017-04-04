@@ -12,7 +12,7 @@ namespace nemo {
 }
 
 class nemo::ThreadPoolCallback {
-private:
+public:
 	void operator=(const ThreadPoolCallback & cb) {
 		//..
 	}
@@ -21,7 +21,14 @@ private:
 		//..
 	}
 
-public:
+	ThreadPoolCallback() {
+		//...
+	}
+
+	virtual ~ThreadPoolCallback() {
+
+	}
+
 	virtual void run(void) {
 		//...
 	}
@@ -32,7 +39,7 @@ public:
 	enum Status { RUNNING, SUSPEND, HALT };
 	
 private:
-	enum DEFAULT_SLEEP {TIME = 1000};
+	enum DEFAULT_SLEEP {TIME = 1};
 
 	int minThreadNum;
 	int maxThreadNum;
@@ -46,7 +53,7 @@ private:
 	void workThread(void) {
 		while (status != Status::HALT) {
 			if (status == Status::SUSPEND) {
-				boost::this_thread::sleep(boost::posix_time::milliseconds(DEFAULT_SLEEP::TIME));
+				boost::this_thread::sleep(boost::posix_time::milliseconds(333));
 				continue;
 			}
 			
@@ -59,7 +66,12 @@ private:
 			}
 			eventLock.unlock();
 
-			ptr->run();
+			if (!ptr) {
+				boost::this_thread::sleep(boost::posix_time::milliseconds(DEFAULT_SLEEP::TIME));
+			}
+			else {
+				ptr->run();
+			}
 		}
 	}
 
@@ -75,10 +87,20 @@ public:
 		}
 	}
 
+	ThreadPool(int min) {
+		minThreadNum = min;
+		maxThreadNum = min;
+		curThreadNum = min;
+		status = Status::SUSPEND;
+
+		for (int i = 0; i < minThreadNum; ++i) {
+			threadList.push_back(boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&ThreadPool::workThread, this))));
+		}
+	}
+
 	virtual ~ThreadPool() {
 		if (status != Status::HALT) {
 			stop();
-			status = Status::HALT;
 		}
 	}
 
