@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <list>
+#include <queue>
 
 #define _WIN32_WINNT  0x0501
 #include <boost\asio.hpp>
@@ -43,7 +44,7 @@ public:
 };
 
 int main(void) {
-	st s;
-	s.run();
+	std::queue<int> q;
+	
 	return 0;
 }

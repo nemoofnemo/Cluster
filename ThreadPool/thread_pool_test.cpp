@@ -1,37 +1,25 @@
-#include "thread_pool.h"
+#include "ThreadPool.h"
 #include <iostream>
 
-struct fc {
-	void operator()(void) {
-		puts("11111111111");
-	}
-};
+using namespace std;
 
-void fuck(void) {
-	puts("2222");
-}
-
-void shit(int a, int b) {
-	printf("%d %d\n", a, b);
-}
-
-class ff {
+class cb : public nemo::ThreadPoolCallback {
 public:
-	virtual void show(int a) {
-		printf("%d\n", a);
-	}
-};
-
-class ff2 : public ff {
-public:
-	void show(int a) {
-		printf("fucccck");
+	void run(void) {
+		cout << "run in " << boost::this_thread::get_id() << endl;
 	}
 };
 
 int main(void) {
-	boost::shared_ptr<ff> ptr = boost::shared_ptr<ff>(new ff2);
-	ptr->show(1);
-	return 0;
+	nemo::ThreadPool tp;
+	boost::shared_ptr<nemo::ThreadPoolCallback> ptr = boost::shared_ptr<nemo::ThreadPoolCallback>(new cb);
+	tp.run();
 
+	for (int i = 0; i < 10; ++i) {
+		tp.addEvent(ptr);
+	}
+
+	boost::thread::sleep(boost::get_system_time() + boost::posix_time::seconds(3));
+	tp.stop();
+	return 0;
 }
