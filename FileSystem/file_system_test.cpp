@@ -3,7 +3,7 @@
 using namespace std;
 
 int main(void) {
-	boost::filesystem::recursive_directory_iterator it("D:/Download");
+	/*boost::filesystem::recursive_directory_iterator it("D:/Download");
 	boost::filesystem::recursive_directory_iterator end;
 	while (it != end) {		
 		cout << (*it).path().filename();
@@ -13,6 +13,7 @@ int main(void) {
 		
 		cout << endl;
 		it++;
-	}
+	}*/
+	vector<int> v;
 	return 0;
 }

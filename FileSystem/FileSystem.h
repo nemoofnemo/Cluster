@@ -6,10 +6,13 @@
 #include <string>
 #include <boost/filesystem.hpp>  
 #include <boost/atomic.hpp>
+#include <boost/thread.hpp>
+#include <boost/thread/mutex.hpp>
 #include <map>
 #include <list>
 #include <deque>
 #include <queue>
+#include <vector>
 
 namespace nemo {
 	struct FileSystemNode;
@@ -18,55 +21,74 @@ namespace nemo {
 	class FileSystemIO;
 }
 
-struct nemo::FileSystemNode {
-	boost::filesystem::path name;
-	uintmax_t size;
-	std::time_t lastWriteTime;
-	bool isDirectory;
-};
-
-struct nemo::FileSystemBuffer {
-	void * data;
-	uintmax_t size;
-};
-
-class nemo::FileSystem {
+class FileSystem {
 private:
-	enum Message {FS_CREATE_FILE, FS_CREATE_DIRECTORY, FS_READ, FS_WRITE, FS_IS_EXIST, FS_REMOVE, FS_RENAME, FS_GET_LIST, FS_ABORT };
-	enum Default {BLOCK_SIZE = 4096, TASK_QUEUE_SIZE = 2048, OPERATION_TIMEOUT = 60};
+	enum AsyncStatus { NONE, WRITE, READ, ABORT, ERROR };
 
-	struct FS_Task {		
-		unsigned long handle;
-		Message msg;
-		void * ptr = NULL;
+	typedef uintmax_t FS_Handle;
+
+	struct FS_Handle_ST {
+		FS_Handle handle;
+		boost::filesystem::path fullPath;
 	};
+	
+	std::map<FS_Handle, FS_Handle_ST> fsHandleMap;
 
-	boost::atomic_ulong index;
-	std::map<uintmax_t, boost::filesystem::path> handleMap;
-	std::queue<FS_Task> taskQueue;
+	struct FS_Thread_Proceing {
+		FS_Handle handle = 0;
+		FS_Handle_ST * handle_st = NULL;
+		AsyncStatus status = AsyncStatus::NONE;
+	};
+	std::vector<FS_Thread_Proceing> processingVector;
+
+	struct FS_AsyncNode {
+		AsyncStatus status = AsyncStatus::NONE;
+		FS_Handle handle = 0;
+		FS_Handle_ST * pHS = NULL;
+		void * data = NULL;
+		uintmax_t dataLimit = 0;
+		uintmax_t dataSize = 0;
+		uintmax_t dataPos = 0;
+		uintmax_t fileStart = 0;
+		uintmax_t filePos = 0;
+	};
+	std::deque<FS_AsyncNode> asyncQueue;
+
+	boost::shared_mutex lock;
+
+	void workThread(void) {
+		int index = -1;
+		while (true) {
+			lock.lock();
+			if (asyncQueue.size()== 0) {
+				lock.unlock();
+				//sleep
+				continue;
+			}
+			FS_AsyncNode top = *asyncQueue.begin();
+			if (top.status == AsyncStatus::ABORT) {
+				for (int i = 0; i < processingVector.size(); ++i) {
+					if (top.handle == processingVector[i].handle) {
+						processingVector[i].status = AsyncStatus::ABORT;
+						break;
+					}
+				}
+			}
+			else if (top.status == AsyncStatus::ERROR) {
+				for (int i = 0; i < processingVector.size(); ++i) {
+					if (top.handle == processingVector[i].handle) {
+						processingVector[i].status = AsyncStatus::ABORT;
+						break;
+					}
+				}
+			}
+			lock.unlock();
+		}
+
+	}
 
 public:
-	FileSystem() {
-
-	}
-
-	virtual ~FileSystem() {
-
-	}
-
-	uintmax_t read(boost::filesystem::path p, FileSystemBuffer buf) {
-
-	}
-
-	uintmax_t write(boost::filesystem::path p, FileSystemBuffer buf) {
-
-	}
-
-	void asyncRead() {
-
-	}
-
-	void asyncWrite() {
+	bool asyncRead(boost::filesystem::path p) {
 
 	}
 };
