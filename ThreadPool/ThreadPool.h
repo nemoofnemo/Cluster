@@ -1,7 +1,13 @@
 #pragma once
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>
+#include <boost/atomic.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/thread/condition_variable.hpp>
+#include <boost/thread/lock_types.hpp>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/interprocess/sync/interprocess_recursive_mutex.hpp>
+#include <boost/interprocess/sync/interprocess_semaphore.hpp>
 #include <map>
 #include <list>
 #include <string>
@@ -139,9 +145,67 @@ public:
 	}
 };
 
-class ThreadPool2 {
+class ThreadPool {
+public:
+	enum Status { RUNNING, SUSPEND, HALT };
 
+private:
+	int minThreadNum;
+	int maxThreadNum;
+	int curThreadNum;
+	Status status;
+	
+	struct TP_Semaphora {
+		int count;
+		boost::condition_variable condition;
+		boost::mutex lock;
 
+		TP_Semaphora() {
+			count = 0;
+		}
 
+		TP_Semaphora(int cnt) : count(cnt){
 
+		}
+
+		void post() {
+			lock.lock();
+			count++;
+			lock.unlock();
+			condition.notify_one();
+		}
+
+		void wait() {
+			boost::unique_lock<boost::mutex> _lock(lock);
+			while (count == 0) {
+				condition.wait(_lock);
+			}
+			count--;
+		}
+	};
+
+	boost::shared_mutex eventLock;
+	boost::interprocess::interprocess_mutex semaphora;
+	std::list<boost::shared_ptr<nemo::ThreadPoolCallback>> taskList;
+
+	boost::shared_ptr<nemo::ThreadPoolCallback> getTask(void) {
+
+	}
+
+	void workThread(void) {
+
+	}
+
+public:
+	ThreadPool() {
+
+	}
+
+	virtual ~ThreadPool() {
+
+	}
+
+	bool postTask(boost::shared_ptr<nemo::ThreadPoolCallback> pCb) {
+
+	}
 };

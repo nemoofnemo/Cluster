@@ -21,6 +21,29 @@ namespace nemo {
 	class FileSystemIO;
 }
 
+class FileSystemCallback {
+public:
+	void operator=(const FileSystemCallback & cb) {
+		//..
+	}
+
+	FileSystemCallback(const FileSystemCallback & cb) {
+		//..
+	}
+
+	FileSystemCallback() {
+		//...
+	}
+
+	virtual ~FileSystemCallback() {
+
+	}
+
+	virtual void run(void) {
+		//...
+	}
+};
+
 class FileSystem {
 private:
 	enum AsyncStatus { NONE, WRITE, READ, ABORT, ERROR };
@@ -28,8 +51,9 @@ private:
 	typedef uintmax_t FS_Handle;
 
 	struct FS_Handle_ST {
-		FS_Handle handle;
+		FS_Handle handle = 0;
 		boost::filesystem::path fullPath;
+		FileSystemCallback * callback = NULL;
 	};
 	
 	std::map<FS_Handle, FS_Handle_ST> fsHandleMap;
@@ -59,12 +83,15 @@ private:
 	void workThread(void) {
 		int index = -1;
 		while (true) {
+			bool callbackFlag = false;
+
 			lock.lock();
 			if (asyncQueue.size()== 0) {
 				lock.unlock();
 				//sleep
 				continue;
 			}
+
 			FS_AsyncNode top = *asyncQueue.begin();
 			if (top.status == AsyncStatus::ABORT) {
 				for (int i = 0; i < processingVector.size(); ++i) {
@@ -82,7 +109,7 @@ private:
 					it++;
 				}
 				//call back?
-
+				callbackFlag = true;
 				//erase
 			}
 			else if (top.status == AsyncStatus::ERROR) {
@@ -101,14 +128,27 @@ private:
 					it++;
 				}
 				//callback
+				callbackFlag = true;
 				//erase
 			}
 			lock.unlock();
+
+			if (callbackFlag) {
+
+
+				continue;
+			}
+
 		}
 
 	}
 
 public:
+
+	static FS_Handle_ST createFileSystemHandle() {
+
+	}
+
 	bool asyncRead(boost::filesystem::path p) {
 
 	}
