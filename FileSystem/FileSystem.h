@@ -73,14 +73,35 @@ private:
 						break;
 					}
 				}
+				std::deque<FS_AsyncNode>::iterator it = asyncQueue.begin();
+				std::deque<FS_AsyncNode>::iterator end = asyncQueue.end();
+				while (it != end) {
+					if (it->handle == top.handle) {
+						it = asyncQueue.erase(it);
+					}
+					it++;
+				}
+				//call back?
+
+				//erase
 			}
 			else if (top.status == AsyncStatus::ERROR) {
 				for (int i = 0; i < processingVector.size(); ++i) {
 					if (top.handle == processingVector[i].handle) {
-						processingVector[i].status = AsyncStatus::ABORT;
+						processingVector[i].status = AsyncStatus::ERROR;
 						break;
 					}
 				}
+				std::deque<FS_AsyncNode>::iterator it = asyncQueue.begin();
+				std::deque<FS_AsyncNode>::iterator end = asyncQueue.end();
+				while (it != end) {
+					if (it->handle == top.handle) {
+						it = asyncQueue.erase(it);
+					}
+					it++;
+				}
+				//callback
+				//erase
 			}
 			lock.unlock();
 		}
