@@ -155,16 +155,18 @@ private:
 	int curThreadNum;
 	Status status;
 	
-	struct TP_Semaphora {
-		int count;
+	class TP_Semaphora {
+	private:
+		unsigned int count;
 		boost::condition_variable condition;
 		boost::mutex lock;
 
+	public:
 		TP_Semaphora() {
 			count = 0;
 		}
 
-		TP_Semaphora(int cnt) : count(cnt){
+		TP_Semaphora(unsigned int cnt) : count(cnt){
 
 		}
 
@@ -177,7 +179,7 @@ private:
 
 		void wait() {
 			boost::unique_lock<boost::mutex> _lock(lock);
-			while (count == 0) {
+			while (count == 0) { //why count == 0 ?
 				condition.wait(_lock);
 			}
 			count--;
