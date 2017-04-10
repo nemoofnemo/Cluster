@@ -179,7 +179,7 @@ private:
 
 		void wait() {
 			boost::unique_lock<boost::mutex> _lock(lock);
-			while (count == 0) { //why count == 0 ?
+			while (count == 0) {
 				condition.wait(_lock);
 			}
 			count--;
@@ -187,15 +187,31 @@ private:
 	};
 
 	boost::shared_mutex eventLock;
-	boost::interprocess::interprocess_mutex semaphora;
+	TP_Semaphora semaphora;
 	std::list<boost::shared_ptr<nemo::ThreadPoolCallback>> taskList;
 
 	boost::shared_ptr<nemo::ThreadPoolCallback> getTask(void) {
-
+		boost::shared_ptr<nemo::ThreadPoolCallback> ret;
+		semaphora.wait();
+		eventLock.lock();
+		if (taskList.size()) {
+			ret = *taskList.begin();
+			taskList.pop_front();
+		}
+		eventLock.unlock();
+		return ret;
 	}
 
 	void workThread(void) {
-
+		while (true) {
+			boost::shared_ptr<nemo::ThreadPoolCallback> task = getTask();
+			if (task == NULL) {
+				continue;
+			}
+			
+			//assume no exception
+			task->run();
+		}
 	}
 
 public:
@@ -207,7 +223,20 @@ public:
 
 	}
 
-	bool postTask(boost::shared_ptr<nemo::ThreadPoolCallback> pCb) {
+	void run() {
+		status = RUNNING;
+	}
 
+	bool postTask(boost::shared_ptr<nemo::ThreadPoolCallback> pCb) {
+		if (status != Status::RUNNING) {
+			return false;
+		}
+
+		eventLock.lock();
+		taskList.push_back(pCb);
+		eventLock.unlock();
+		semaphora.post();
+
+		return true;
 	}
 };
