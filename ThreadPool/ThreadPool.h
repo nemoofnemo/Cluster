@@ -189,6 +189,7 @@ private:
 	boost::shared_mutex eventLock;
 	TP_Semaphora semaphora;
 	std::list<boost::shared_ptr<nemo::ThreadPoolCallback>> taskList;
+	std::list<boost::shared_ptr<boost::thread>> threadList;
 
 	boost::shared_ptr<nemo::ThreadPoolCallback> getTask(void) {
 		boost::shared_ptr<nemo::ThreadPoolCallback> ret;
@@ -205,6 +206,10 @@ private:
 	void workThread(void) {
 		while (true) {
 			boost::shared_ptr<nemo::ThreadPoolCallback> task = getTask();
+			if (status == Status::HALT) {
+				break;
+			}
+
 			if (task == NULL) {
 				continue;
 			}
@@ -213,7 +218,7 @@ private:
 			task->run();
 		}
 	}
-
+	
 public:
 	ThreadPool() {
 
@@ -225,6 +230,10 @@ public:
 
 	void run() {
 		status = RUNNING;
+	}
+
+	void stop() {
+		status = Status::HALT;
 	}
 
 	bool postTask(boost::shared_ptr<nemo::ThreadPoolCallback> pCb) {
