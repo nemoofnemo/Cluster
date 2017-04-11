@@ -48,6 +48,37 @@ class FileSystem {
 private:
 	enum AsyncStatus { NONE, WRITE, READ, ABORT, ERROR };
 
+	class FS_Semaphora {
+	private:
+		unsigned int count;
+		boost::condition_variable condition;
+		boost::mutex lock;
+
+	public:
+		FS_Semaphora() {
+			count = 0;
+		}
+
+		FS_Semaphora(unsigned int cnt) : count(cnt) {
+
+		}
+
+		void post() {
+			lock.lock();
+			count++;
+			lock.unlock();
+			condition.notify_one();
+		}
+
+		void wait() {
+			boost::unique_lock<boost::mutex> _lock(lock);
+			while (count == 0) {
+				condition.wait(_lock);
+			}
+			count--;
+		}
+	};
+
 	typedef uintmax_t FS_Handle;
 
 	struct FS_Handle_ST {
