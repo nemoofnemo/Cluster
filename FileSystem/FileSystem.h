@@ -8,6 +8,8 @@
 #include <boost/atomic.hpp>
 #include <boost/thread.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/thread/condition_variable.hpp>
+#include <boost/thread/lock_types.hpp>
 #include <map>
 #include <list>
 #include <deque>
@@ -46,6 +48,7 @@ public:
 
 class FileSystem {
 private:
+	enum QueueOperation {PUSH_BACK,PUSH_FRONT};
 	enum AsyncStatus { NONE, WRITE, READ, ABORT, ERROR };
 
 	class FS_Semaphora {
@@ -99,8 +102,8 @@ private:
 	struct FS_AsyncNode {
 		AsyncStatus status = AsyncStatus::NONE;
 		FS_Handle handle = 0;
-		FS_Handle_ST * pHS = NULL;
-		void * data = NULL;
+		FS_Handle_ST * handle_st = NULL;
+		unsigned char * data = NULL;
 		uintmax_t dataLimit = 0;
 		uintmax_t dataSize = 0;
 		uintmax_t dataPos = 0;
@@ -110,66 +113,70 @@ private:
 	std::deque<FS_AsyncNode> asyncQueue;
 
 	boost::shared_mutex lock;
+	FS_Semaphora semaphora;
+	std::list<boost::shared_ptr<boost::thread>> threadList;
 
-	void workThread(void) {
-		int index = -1;
+private:
+	
+	void postToAsyncQueue(const FS_AsyncNode & node, QueueOperation op = QueueOperation::PUSH_BACK) {
+		{
+			boost::lock_guard<boost::shared_mutex> lg(lock);
+			if (op == QueueOperation::PUSH_BACK) {
+				asyncQueue.push_back(node);
+			}
+			else {
+				asyncQueue.push_front(node);
+			}
+		}
+		semaphora.post();
+	}
+
+	void workThread(int index) {
 		while (true) {
 			bool callbackFlag = false;
-
-			lock.lock();
-			if (asyncQueue.size()== 0) {
-				lock.unlock();
-				//sleep
-				continue;
+			
+			while (asyncQueue.size() == 0) {
+				semaphora.wait();
 			}
 
-			FS_AsyncNode top = *asyncQueue.begin();
-			if (top.status == AsyncStatus::ABORT) {
-				for (int i = 0; i < processingVector.size(); ++i) {
-					if (top.handle == processingVector[i].handle) {
-						processingVector[i].status = AsyncStatus::ABORT;
-						break;
-					}
+			FS_AsyncNode node;
+			{
+				boost::lock_guard<boost::shared_mutex> lg(lock);
+				if (asyncQueue.size() == 0) {
+					lock.unlock();
+					continue;
 				}
+
 				std::deque<FS_AsyncNode>::iterator it = asyncQueue.begin();
 				std::deque<FS_AsyncNode>::iterator end = asyncQueue.end();
 				while (it != end) {
-					if (it->handle == top.handle) {
-						it = asyncQueue.erase(it);
+					int i = 0;
+					for (; i < processingVector.size(); ++i) {
+						if (processingVector[i].handle == it->handle) {
+							break;
+						}
 					}
-					it++;
-				}
-				//call back?
-				callbackFlag = true;
-				//erase
-			}
-			else if (top.status == AsyncStatus::ERROR) {
-				for (int i = 0; i < processingVector.size(); ++i) {
-					if (top.handle == processingVector[i].handle) {
-						processingVector[i].status = AsyncStatus::ERROR;
+					if (i == processingVector.size()) {
 						break;
 					}
+					++it;
 				}
-				std::deque<FS_AsyncNode>::iterator it = asyncQueue.begin();
-				std::deque<FS_AsyncNode>::iterator end = asyncQueue.end();
-				while (it != end) {
-					if (it->handle == top.handle) {
-						it = asyncQueue.erase(it);
-					}
-					it++;
+
+				if (it == end) {
+					continue;
 				}
-				//callback
-				callbackFlag = true;
-				//erase
-			}
-			lock.unlock();
 
-			if (callbackFlag) {
-
-
-				continue;
+				node = *it;
+				processingVector[index].handle = node.handle;
+				processingVector[index].handle_st = node.handle_st;
+				processingVector[index].status = node.status;
+				asyncQueue.erase(it);
 			}
 
+			switch (node.status){
+			default:
+				break;
+			}
 		}
 
 	}

@@ -88,7 +88,9 @@ private:
 
 	boost::shared_ptr<nemo::ThreadPoolCallback> getTask(void) {
 		boost::shared_ptr<nemo::ThreadPoolCallback> ret;
-		semaphora.wait();
+		while (taskList.size() == 0) {
+			semaphora.wait();
+		}
 		eventLock.lock();
 		if (taskList.size()) {
 			ret = *taskList.begin();
