@@ -40,7 +40,7 @@ public:
 	}
 };
 
-class nemo::ThreadPool {
+class ThreadPool {
 public:
 	enum Status { RUNNING, SUSPEND, HALT };
 	
@@ -54,7 +54,7 @@ private:
 	
 	std::list<boost::shared_ptr<boost::thread>> threadList;
 	boost::shared_mutex eventLock;
-	std::list<boost::shared_ptr<ThreadPoolCallback>> eventList;
+	std::list<boost::shared_ptr<nemo::ThreadPoolCallback>> eventList;
 
 	void workThread(void) {
 		while (status != Status::HALT) {
@@ -63,7 +63,7 @@ private:
 				continue;
 			}
 			
-			boost::shared_ptr<ThreadPoolCallback> ptr;
+			boost::shared_ptr<nemo::ThreadPoolCallback> ptr;
 
 			eventLock.lock();
 			if (eventList.size()) {
@@ -136,7 +136,7 @@ public:
 		eventList.clear();
 	}
 
-	bool addEvent(const boost::shared_ptr<ThreadPoolCallback> & ptr) {
+	bool addEvent(const boost::shared_ptr<nemo::ThreadPoolCallback> & ptr) {
 		bool ret = true;;
 		eventLock.lock();
 		eventList.push_back(ptr);
@@ -145,7 +145,7 @@ public:
 	}
 };
 
-class ThreadPool {
+class nemo::ThreadPool {
 public:
 	enum Status { RUNNING, SUSPEND, HALT };
 
@@ -221,11 +221,20 @@ private:
 	
 public:
 	ThreadPool() {
+		minThreadNum = 4;
+		maxThreadNum = 4;
+		curThreadNum = 4;
+		status = Status::SUSPEND;
 
+		for (int i = 0; i < minThreadNum; ++i) {
+			threadList.push_back(boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&ThreadPool::workThread, this))));
+		}
 	}
 
 	virtual ~ThreadPool() {
-
+		if (status != Status::HALT) {
+			stop();
+		}
 	}
 
 	void run() {
@@ -234,6 +243,23 @@ public:
 
 	void stop() {
 		status = Status::HALT;
+		std::list<boost::shared_ptr<boost::thread>>::iterator it = threadList.begin();
+		std::list<boost::shared_ptr<boost::thread>>::iterator end = threadList.end();
+
+		for (int i = 0; i < curThreadNum; ++i) {
+			eventLock.lock();
+			taskList.push_back(NULL);
+			eventLock.unlock();
+			semaphora.post();
+		}
+
+		while (it != end) {
+			(*it)->join();
+			it++;
+		}
+
+		threadList.clear();
+		taskList.clear();
 	}
 
 	bool postTask(boost::shared_ptr<nemo::ThreadPoolCallback> pCb) {
