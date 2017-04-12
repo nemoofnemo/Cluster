@@ -132,6 +132,19 @@ private:
 		semaphora.post();
 	}
 
+	void executeIO(FS_AsyncNode & node) {
+		switch (node.status) {
+		case AsyncStatus::READ:
+
+			break;
+		case AsyncStatus::WRITE:
+
+			break;
+		default:
+			break;
+		}
+	}
+
 	void workThread(int index) {
 		while (true) {
 			bool callbackFlag = false;
@@ -148,6 +161,7 @@ private:
 					continue;
 				}
 
+				//if selected handle is processing, find next one.
 				std::deque<FS_AsyncNode>::iterator it = asyncQueue.begin();
 				std::deque<FS_AsyncNode>::iterator end = asyncQueue.end();
 				while (it != end) {
@@ -173,6 +187,18 @@ private:
 					continue;
 				}
 
+				//if status == ABORT
+				if (it->status == AsyncStatus::ABORT) {
+					std::deque<FS_AsyncNode>::iterator temp = asyncQueue.begin();
+					while (temp != end) {
+						if (temp->handle == it->handle) {
+							temp = asyncQueue.erase(temp);
+						}
+						++temp;
+					}
+					continue;
+				}
+
 				//get task
 				node = *it;
 				processingVector[index].handle = node.handle;
@@ -180,13 +206,8 @@ private:
 				processingVector[index].status = node.status;
 				asyncQueue.erase(it);
 			}
-
-			switch (node.status){
-			default:
-				break;
-			}
+			executeIO(node);
 		}
-
 	}
 
 public:
@@ -208,19 +229,30 @@ public:
 	}
 
 	void releaseFileSystemHandle(FS_Handle h) {
-		boost::lock_guard<boost::shared_mutex> lg(lock);
-		std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
-		if (it != fsHandleMap.end()) {
-			fsHandleMap.erase(it);
+		{
+			boost::lock_guard<boost::shared_mutex> lg(lock);
+			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+			if (it != fsHandleMap.end()) {
+				fsHandleMap.erase(it);
+			}
 		}
 		//todo : post abort?
 	}
 
-	bool asyncRead(FS_Handle h) {
-
+	bool asyncRead(FS_Handle h, void * ptr, uintmax_t limit, boost::shared_ptr<FileSystemCallback> cb) {
+		FS_AsyncNode node;
+		node.status = AsyncStatus::READ;
+		node.handle = h;
+		node.data = (unsigned char *)ptr;
+		node.dataLimit = limit;
 	}
 
 	bool asyncWrite(FS_Handle h) {
 
 	}
+
+	bool abortOperation(FS_Handle) {
+
+	}
 };
+
