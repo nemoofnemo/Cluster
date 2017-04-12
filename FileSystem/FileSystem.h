@@ -15,6 +15,7 @@
 #include <deque>
 #include <queue>
 #include <vector>
+#include <utility>
 
 namespace nemo {
 	struct FileSystemNode;
@@ -87,7 +88,7 @@ private:
 	struct FS_Handle_ST {
 		FS_Handle handle = 0;
 		boost::filesystem::path fullPath;
-		FileSystemCallback * callback = NULL;
+		boost::shared_ptr<FileSystemCallback> callback;
 	};
 	
 	std::map<FS_Handle, FS_Handle_ST> fsHandleMap;
@@ -115,7 +116,7 @@ private:
 	boost::shared_mutex lock;
 	FS_Semaphora semaphora;
 	std::list<boost::shared_ptr<boost::thread>> threadList;
-
+	uintmax_t handle_index;
 private:
 	
 	void postToAsyncQueue(const FS_AsyncNode & node, QueueOperation op = QueueOperation::PUSH_BACK) {
@@ -166,6 +167,13 @@ private:
 					continue;
 				}
 
+				//if handle is not in handle map, release resource.
+				if (fsHandleMap.find(it->handle) == fsHandleMap.end()) {
+					asyncQueue.erase(it);
+					continue;
+				}
+
+				//get task
 				node = *it;
 				processingVector[index].handle = node.handle;
 				processingVector[index].handle_st = node.handle_st;
@@ -183,11 +191,36 @@ private:
 
 public:
 
-	static FS_Handle_ST createFileSystemHandle() {
+	void init(void) {
+		handle_index = 0;
+	}
+
+	FS_Handle createFileSystemHandle(const boost::filesystem::path & p, const boost::shared_ptr<FileSystemCallback> & cb) {
+		boost::lock_guard<boost::shared_mutex> lg(lock);
+		FS_Handle ret = handle_index;
+		handle_index++;
+		FS_Handle_ST st;
+		st.handle = ret;
+		st.fullPath = p;
+		st.callback = cb;
+		fsHandleMap.insert(std::pair<FS_Handle,FS_Handle_ST>(ret, st));
+		return ret;
+	}
+
+	void releaseFileSystemHandle(FS_Handle h) {
+		boost::lock_guard<boost::shared_mutex> lg(lock);
+		std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+		if (it != fsHandleMap.end()) {
+			fsHandleMap.erase(it);
+		}
+		//todo : post abort?
+	}
+
+	bool asyncRead(FS_Handle h) {
 
 	}
 
-	bool asyncRead(boost::filesystem::path p) {
+	bool asyncWrite(FS_Handle h) {
 
 	}
 };
