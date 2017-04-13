@@ -128,6 +128,8 @@ private:
 	std::list<boost::shared_ptr<boost::thread>> threadList;
 	uintmax_t handleIndex;
 	FS_AsyncHandle asyncHandleIndex;
+	uintmax_t blockSize;
+
 private:
 	
 	void postToAsyncQueue(const FS_AsyncNode & node, QueueOperation op = QueueOperation::PUSH_BACK) {
@@ -150,7 +152,11 @@ private:
 			node.callback->run(st,ErrorCode::OPEN_FAIL,node.data,0);
 			return;
 		}
-		
+		file.seekg(node.fileStart + node.dataPos);
+		uintmax_t target = (node.dataSize > blockSize) ? blockSize : node.dataSize;
+		file.read((char *)node.data, target);
+		uintmax_t cnt = file.gcount();
+		node.dataPos += cnt;
 	}
 
 	void executeIO(FS_AsyncNode & node) {
@@ -241,6 +247,7 @@ public:
 	void init(void) {
 		handleIndex = 0;
 		asyncHandleIndex = 0;
+		blockSize = 4096;
 	}
 
 	FS_Handle createFileSystemHandle(const boost::filesystem::path & p) {
