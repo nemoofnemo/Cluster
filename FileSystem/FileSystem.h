@@ -50,7 +50,7 @@ public:
 class FileSystem {
 private:
 	enum QueueOperation {PUSH_BACK,PUSH_FRONT};
-	enum AsyncStatus { NONE, WRITE, READ, ABORT, ERROR };
+	enum AsyncStatus { NONE, DONE, APPEND_WRITE, WRITE, READ, READ_ALL, ABORT, ERROR };
 
 	class FS_Semaphora {
 	private:
@@ -88,7 +88,6 @@ private:
 	struct FS_Handle_ST {
 		FS_Handle handle = 0;
 		boost::filesystem::path fullPath;
-		boost::shared_ptr<FileSystemCallback> callback;
 	};
 	
 	std::map<FS_Handle, FS_Handle_ST> fsHandleMap;
@@ -110,6 +109,7 @@ private:
 		uintmax_t dataPos = 0;
 		uintmax_t fileStart = 0;
 		uintmax_t filePos = 0;
+		boost::shared_ptr<FileSystemCallback> callback;
 	};
 	std::deque<FS_AsyncNode> asyncQueue;
 
@@ -120,24 +120,27 @@ private:
 private:
 	
 	void postToAsyncQueue(const FS_AsyncNode & node, QueueOperation op = QueueOperation::PUSH_BACK) {
-		{
-			boost::lock_guard<boost::shared_mutex> lg(lock);
-			if (op == QueueOperation::PUSH_BACK) {
-				asyncQueue.push_back(node);
-			}
-			else {
-				asyncQueue.push_front(node);
-			}
+		if (op == QueueOperation::PUSH_BACK) {
+			asyncQueue.push_back(node);
 		}
-		semaphora.post();
+		else {
+			asyncQueue.push_front(node);
+		}
 	}
 
 	void executeIO(FS_AsyncNode & node) {
+		std::fstream file;
 		switch (node.status) {
 		case AsyncStatus::READ:
 
 			break;
+		case AsyncStatus::READ_ALL:
+
+			break;
 		case AsyncStatus::WRITE:
+
+			break;
+		case AsyncStatus::APPEND_WRITE:
 
 			break;
 		default:
@@ -196,6 +199,9 @@ private:
 						}
 						++temp;
 					}
+
+					asyncQueue.erase(it);
+					//callback?
 					continue;
 				}
 
@@ -216,14 +222,13 @@ public:
 		handle_index = 0;
 	}
 
-	FS_Handle createFileSystemHandle(const boost::filesystem::path & p, const boost::shared_ptr<FileSystemCallback> & cb) {
+	FS_Handle createFileSystemHandle(const boost::filesystem::path & p) {
 		boost::lock_guard<boost::shared_mutex> lg(lock);
 		FS_Handle ret = handle_index;
 		handle_index++;
 		FS_Handle_ST st;
 		st.handle = ret;
 		st.fullPath = p;
-		st.callback = cb;
 		fsHandleMap.insert(std::pair<FS_Handle,FS_Handle_ST>(ret, st));
 		return ret;
 	}
@@ -239,20 +244,115 @@ public:
 		//todo : post abort?
 	}
 
-	bool asyncRead(FS_Handle h, void * ptr, uintmax_t limit, boost::shared_ptr<FileSystemCallback> cb) {
-		FS_AsyncNode node;
-		node.status = AsyncStatus::READ;
-		node.handle = h;
-		node.data = (unsigned char *)ptr;
-		node.dataLimit = limit;
+	bool asyncRead(FS_Handle h,const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
+		{
+			boost::lock_guard<boost::shared_mutex> lg(lock);
+			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+			if (it == fsHandleMap.end()) {
+				return false;
+			}
+
+			FS_AsyncNode node;
+			node.status = AsyncStatus::READ;
+			node.handle = h;
+			node.data = (unsigned char *)ptr;
+			node.dataLimit = limit;
+			node.handle_st = &it->second;
+			node.fileStart = offset;
+			node.filePos = offset;
+			node.dataSize = size;
+			node.dataPos = 0;
+			node.callback = cb;
+			postToAsyncQueue(node);
+		}
+
+		semaphora.post();
+		return true;
 	}
 
-	bool asyncWrite(FS_Handle h) {
+	bool asyncReadAll(FS_Handle h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t size) {
+		{
+			boost::lock_guard<boost::shared_mutex> lg(lock);
+			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+			if (it == fsHandleMap.end()) {
+				return false;
+			}
 
+			FS_AsyncNode node;
+			node.status = AsyncStatus::READ_ALL;
+			node.handle = h;
+			node.data = (unsigned char *)ptr;
+			node.dataLimit = limit;
+			node.handle_st = &it->second;
+			node.fileStart = 0;
+			node.filePos = 0;
+			node.dataSize = size;
+			node.dataPos = 0;
+			node.callback = cb;
+			postToAsyncQueue(node);
+		}
+
+		semaphora.post();
+		return true;
 	}
 
-	bool abortOperation(FS_Handle) {
+	bool asyncAppendWrite(FS_Handle h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t size) {
+		{
+			boost::lock_guard<boost::shared_mutex> lg(lock);
+			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+			if (it == fsHandleMap.end()) {
+				return false;
+			}
+			FS_AsyncNode node;
+			node.status = AsyncStatus::APPEND_WRITE;
+			node.handle = h;
+			node.handle_st = &it->second;
+			node.callback = cb;
+			node.data = (unsigned char *)ptr;
+			node.dataLimit = size;
+			node.dataSize = size;
+			node.dataPos = 0;
+			node.fileStart = 0;
+			node.filePos = 0;
+			postToAsyncQueue(node);
+		}
 
+		semaphora.post();
+		return true;
+	}
+
+	bool asyncWrite(FS_Handle h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
+		{
+			boost::lock_guard<boost::shared_mutex> lg(lock);
+			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+			if (it == fsHandleMap.end()) {
+				return false;
+			}
+
+			FS_AsyncNode node;
+			node.status = AsyncStatus::WRITE;
+			node.handle = h;
+			node.data = (unsigned char *)ptr;
+			node.dataLimit = limit;
+			node.handle_st = &it->second;
+			node.fileStart = offset;
+			node.filePos = offset;
+			node.dataSize = size;
+			node.dataPos = 0;
+			node.callback = cb;
+			postToAsyncQueue(node);
+		}
+
+		semaphora.post();
+		return true;
+	}
+
+	bool abortAsyncOperation(FS_Handle h) {
+		std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+		if (it == fsHandleMap.end()) {
+			return false;
+		}
+		//todo
 	}
 };
 
