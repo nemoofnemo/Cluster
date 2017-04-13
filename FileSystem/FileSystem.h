@@ -28,7 +28,7 @@ class FileSystem {
 public:
 	enum QueueOperation {PUSH_BACK,PUSH_FRONT};
 	enum AsyncStatus { NONE, APPEND_WRITE, WRITE, READ, READ_ALL, ABORT, ERROR };
-	enum ErrorCode {PENDING, DONE,END_OF_FILE,OPEN_FAIL,BAD_STREAM,IO_FAIL};
+	enum ErrorCode {DONE,PENDING,END_OF_FILE,OPEN_FAIL,BAD_STREAM,IO_FAIL};
 
 	typedef uintmax_t FS_Handle;
 	typedef uintmax_t FS_AsyncHandle;
@@ -139,11 +139,24 @@ private:
 		}
 	}
 
-	void executeIO(FS_AsyncNode & node) {
+	void doRead(FS_AsyncNode & node) {
 		std::fstream file;
+		file.open(node.handle_st->fullPath.string(), std::ios::binary | std::ios::in);
+		if (!file.is_open()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st,ErrorCode::OPEN_FAIL,node.data,0);
+			return;
+		}
+		
+	}
+
+	void executeIO(FS_AsyncNode & node) {
 		switch (node.status) {
 		case AsyncStatus::READ:
-
+			doRead(node);
 			break;
 		case AsyncStatus::READ_ALL:
 
@@ -179,7 +192,7 @@ private:
 				std::deque<FS_AsyncNode>::iterator it = asyncQueue.begin();
 				std::deque<FS_AsyncNode>::iterator end = asyncQueue.end();
 				while (it != end) {
-					int i = 0;
+					size_t i = 0;
 					for (; i < processingVector.size(); ++i) {
 						if (processingVector[i].handle == it->handle) {
 							break;
