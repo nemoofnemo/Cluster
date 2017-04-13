@@ -24,34 +24,50 @@ namespace nemo {
 	class FileSystemIO;
 }
 
-class FileSystemCallback {
-public:
-	void operator=(const FileSystemCallback & cb) {
-		//..
-	}
-
-	FileSystemCallback(const FileSystemCallback & cb) {
-		//..
-	}
-
-	FileSystemCallback() {
-		//...
-	}
-
-	virtual ~FileSystemCallback() {
-
-	}
-
-	virtual void run(void) {
-		//...
-	}
-};
-
 class FileSystem {
-private:
+public:
 	enum QueueOperation {PUSH_BACK,PUSH_FRONT};
-	enum AsyncStatus { NONE, DONE, APPEND_WRITE, WRITE, READ, READ_ALL, ABORT, ERROR };
+	enum AsyncStatus { NONE, APPEND_WRITE, WRITE, READ, READ_ALL, ABORT, ERROR };
+	enum ErrorCode {PENDING, DONE,END_OF_FILE,OPEN_FAIL,BAD_STREAM,IO_FAIL};
 
+	typedef uintmax_t FS_Handle;
+	typedef uintmax_t FS_AsyncHandle;
+
+	struct FS_AsyncHandle_ST {
+		FS_Handle fileHandle = 0;
+		FS_AsyncHandle asyncHandle = 0;
+		AsyncStatus status = AsyncStatus::NONE;
+	};
+
+	struct FS_Handle_ST {
+		FS_Handle handle = 0;
+		boost::filesystem::path fullPath;
+	};
+
+	class FileSystemCallback {
+	public:
+		void operator=(const FileSystemCallback & cb) {
+			//..
+		}
+
+		FileSystemCallback(const FileSystemCallback & cb) {
+			//..
+		}
+
+		FileSystemCallback() {
+			//...
+		}
+
+		virtual ~FileSystemCallback() {
+
+		}
+
+		virtual void run(const FS_AsyncHandle_ST & ast, ErrorCode e, void * data, uintmax_t count) {
+			//...
+		}
+	};
+
+private:
 	class FS_Semaphora {
 	private:
 		unsigned int count;
@@ -82,13 +98,6 @@ private:
 			count--;
 		}
 	};
-
-	typedef uintmax_t FS_Handle;
-
-	struct FS_Handle_ST {
-		FS_Handle handle = 0;
-		boost::filesystem::path fullPath;
-	};
 	
 	std::map<FS_Handle, FS_Handle_ST> fsHandleMap;
 
@@ -97,10 +106,10 @@ private:
 		FS_Handle_ST * handle_st = NULL;
 		AsyncStatus status = AsyncStatus::NONE;
 	};
-	std::vector<FS_Thread_Proceing> processingVector;
 
 	struct FS_AsyncNode {
 		AsyncStatus status = AsyncStatus::NONE;
+		FS_AsyncHandle asyncHandle = 0;
 		FS_Handle handle = 0;
 		FS_Handle_ST * handle_st = NULL;
 		unsigned char * data = NULL;
@@ -111,12 +120,14 @@ private:
 		uintmax_t filePos = 0;
 		boost::shared_ptr<FileSystemCallback> callback;
 	};
-	std::deque<FS_AsyncNode> asyncQueue;
 
+	std::vector<FS_Thread_Proceing> processingVector;
+	std::deque<FS_AsyncNode> asyncQueue;
 	boost::shared_mutex lock;
 	FS_Semaphora semaphora;
 	std::list<boost::shared_ptr<boost::thread>> threadList;
-	uintmax_t handle_index;
+	uintmax_t handleIndex;
+	FS_AsyncHandle asyncHandleIndex;
 private:
 	
 	void postToAsyncQueue(const FS_AsyncNode & node, QueueOperation op = QueueOperation::PUSH_BACK) {
@@ -194,15 +205,11 @@ private:
 				if (it->status == AsyncStatus::ABORT) {
 					std::deque<FS_AsyncNode>::iterator temp = asyncQueue.begin();
 					while (temp != end) {
-						if (temp->handle == it->handle) {
+						if (temp->asyncHandle == it->asyncHandle) {
 							temp = asyncQueue.erase(temp);
 						}
 						++temp;
 					}
-
-					asyncQueue.erase(it);
-					//callback?
-					continue;
 				}
 
 				//get task
@@ -219,13 +226,14 @@ private:
 public:
 
 	void init(void) {
-		handle_index = 0;
+		handleIndex = 0;
+		asyncHandleIndex = 0;
 	}
 
 	FS_Handle createFileSystemHandle(const boost::filesystem::path & p) {
 		boost::lock_guard<boost::shared_mutex> lg(lock);
-		FS_Handle ret = handle_index;
-		handle_index++;
+		FS_Handle ret = handleIndex;
+		handleIndex++;
 		FS_Handle_ST st;
 		st.handle = ret;
 		st.fullPath = p;
@@ -244,17 +252,28 @@ public:
 		//todo : post abort?
 	}
 
-	bool asyncRead(FS_Handle h,const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
+	FS_AsyncHandle_ST createAsyncHandleST(FS_Handle h) {
+		FS_AsyncHandle_ST ret;
+		ret.fileHandle = h;
+		return ret;
+	}
+
+	bool asyncRead(FS_AsyncHandle_ST & h,const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
 		{
 			boost::lock_guard<boost::shared_mutex> lg(lock);
-			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
 			if (it == fsHandleMap.end()) {
 				return false;
 			}
 
+			h.asyncHandle = asyncHandleIndex;
+			h.status = AsyncStatus::READ;
+			asyncHandleIndex++;
+
 			FS_AsyncNode node;
 			node.status = AsyncStatus::READ;
-			node.handle = h;
+			node.handle = h.fileHandle;
+			node.asyncHandle = h.asyncHandle;
 			node.data = (unsigned char *)ptr;
 			node.dataLimit = limit;
 			node.handle_st = &it->second;
@@ -270,17 +289,22 @@ public:
 		return true;
 	}
 
-	bool asyncReadAll(FS_Handle h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t size) {
+	bool asyncReadAll(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t size) {
 		{
 			boost::lock_guard<boost::shared_mutex> lg(lock);
-			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
 			if (it == fsHandleMap.end()) {
 				return false;
 			}
 
+			h.asyncHandle = asyncHandleIndex;
+			asyncHandleIndex++;
+			h.status = AsyncStatus::READ_ALL;
+
 			FS_AsyncNode node;
 			node.status = AsyncStatus::READ_ALL;
-			node.handle = h;
+			node.handle = h.fileHandle;
+			node.asyncHandle = h.asyncHandle;
 			node.data = (unsigned char *)ptr;
 			node.dataLimit = limit;
 			node.handle_st = &it->second;
@@ -296,16 +320,21 @@ public:
 		return true;
 	}
 
-	bool asyncAppendWrite(FS_Handle h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t size) {
+	bool asyncAppendWrite(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t size) {
 		{
 			boost::lock_guard<boost::shared_mutex> lg(lock);
-			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
 			if (it == fsHandleMap.end()) {
 				return false;
 			}
+			h.asyncHandle = asyncHandleIndex;
+			asyncHandleIndex++;
+			h.status = AsyncStatus::APPEND_WRITE;
+
 			FS_AsyncNode node;
 			node.status = AsyncStatus::APPEND_WRITE;
-			node.handle = h;
+			node.handle = h.fileHandle;
+			node.asyncHandle = h.asyncHandle;
 			node.handle_st = &it->second;
 			node.callback = cb;
 			node.data = (unsigned char *)ptr;
@@ -321,17 +350,21 @@ public:
 		return true;
 	}
 
-	bool asyncWrite(FS_Handle h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
+	bool asyncWrite(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
 		{
 			boost::lock_guard<boost::shared_mutex> lg(lock);
-			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
 			if (it == fsHandleMap.end()) {
 				return false;
 			}
+			h.asyncHandle = asyncHandleIndex;
+			asyncHandleIndex++;
+			h.status = AsyncStatus::WRITE;
 
 			FS_AsyncNode node;
 			node.status = AsyncStatus::WRITE;
-			node.handle = h;
+			node.handle = h.fileHandle;
+			node.asyncHandle = h.asyncHandle;
 			node.data = (unsigned char *)ptr;
 			node.dataLimit = limit;
 			node.handle_st = &it->second;
@@ -347,8 +380,8 @@ public:
 		return true;
 	}
 
-	bool abortAsyncOperation(FS_Handle h) {
-		std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
+	bool abortAsyncOperation(FS_AsyncHandle_ST & h) {
+		std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
 		if (it == fsHandleMap.end()) {
 			return false;
 		}
