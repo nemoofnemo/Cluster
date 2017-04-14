@@ -159,6 +159,14 @@ private:
 		node.dataPos += cnt;
 	}
 
+	void doReadAll(FS_AsyncNode & node) {
+
+	}
+
+	void doWrite(FS_AsyncNode & node) {
+
+	}
+
 	void executeIO(FS_AsyncNode & node) {
 		switch (node.status) {
 		case AsyncStatus::READ:
