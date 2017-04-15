@@ -2,6 +2,26 @@
 
 using namespace std;
 
+class cb : public FileSystem::FileSystemCallback {
+public:
+	void run(const FileSystem::FS_AsyncHandle_ST & ast, FileSystem::ErrorCode e, void * data, uintmax_t count) {
+		cout << count << endl;
+		for (int i = 0; i < count; ++i) {
+			putchar(*(((char*)data) + i));
+		}
+	}
+};
+
+void test(void) {
+	FileSystem fs;
+	fs.init();
+	FileSystem::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("test.txt"));
+	FileSystem::FS_AsyncHandle_ST ah = fs.createAsyncHandleST(h);
+	char * temp = new char[256];
+	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), temp, 256, 0, 6);
+	fs.debugRun();
+}
+
 int main(void) {
 	/*boost::filesystem::recursive_directory_iterator it(".");
 	boost::filesystem::recursive_directory_iterator end;
@@ -14,17 +34,19 @@ int main(void) {
 		cout << endl;
 		it++;
 	}*/
-	fstream f;
+	/*fstream f;
 	f.open("test.txt", ios::in | ios::binary);
-	f.seekg(10000, ios::beg);
+	char temp[100] = { 0 };
+	f.read(temp, 100);
+	cout << f.gcount() << endl;
+	cout << temp << endl;
 	if (f.good()) {
-		puts("1111");
+		puts("111");
 	}
-	f.write("1", 1);
 	if (f.eof()) {
-		puts("222");
+		puts("2222");
 	}
-	cout << f.tellg() << endl;
-	f.close();
+	f.close();*/
+	test();
 	return 0;
 }

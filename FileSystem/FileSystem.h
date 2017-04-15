@@ -103,6 +103,7 @@ private:
 
 	struct FS_Thread_Proceing {
 		FS_Handle handle = 0;
+		FS_AsyncHandle asyncHandle = 0;
 		FS_Handle_ST * handle_st = NULL;
 		AsyncStatus status = AsyncStatus::NONE;
 	};
@@ -141,7 +142,20 @@ private:
 		}
 	}
 
-	void doRead(FS_AsyncNode & node) {
+	void _postToAsyncQueue(const FS_AsyncNode & node, QueueOperation op = QueueOperation::PUSH_BACK) {
+		{
+			boost::lock_guard<boost::shared_mutex> lg(lock);
+			if (op == QueueOperation::PUSH_BACK) {
+				asyncQueue.push_back(node);
+			}
+			else {
+				asyncQueue.push_front(node);
+			}
+		}
+		semaphora.post();
+	}
+
+	void doRead(FS_AsyncNode & node, const int & index) {
 		std::fstream file;
 		file.open(node.handle_st->fullPath.string(), std::ios::binary | std::ios::in);
 		if (!file.is_open()) {
@@ -157,6 +171,62 @@ private:
 		file.read((char *)node.data, target);
 		uintmax_t cnt = file.gcount();
 		node.dataPos += cnt;
+
+		if (file.good()) {
+			if (node.dataPos == node.dataSize) {
+				FS_AsyncHandle_ST st;
+				st.asyncHandle = node.asyncHandle;
+				st.fileHandle = node.handle;
+				st.status = node.status;
+				node.callback->run(st, ErrorCode::DONE, node.data, cnt);
+				file.close();
+				return;
+			}
+			if (node.dataPos < node.dataSize) {
+				FS_AsyncHandle_ST st;
+				st.asyncHandle = node.asyncHandle;
+				st.fileHandle = node.handle;
+				st.status = node.status;
+				node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
+				file.close();
+				{
+					boost::lock_guard<boost::shared_mutex> lg(lock);
+					asyncQueue.push_back(node);
+				}
+				semaphora.post();
+				return;
+			}
+		}
+		if (file.bad()) {
+			if (file.eof()) {
+				FS_AsyncHandle_ST st;
+				st.asyncHandle = node.asyncHandle;
+				st.fileHandle = node.handle;
+				st.status = node.status;
+				node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
+				file.close();
+				return;
+			}
+			else if (file.fail()) {
+				FS_AsyncHandle_ST st;
+				st.asyncHandle = node.asyncHandle;
+				st.fileHandle = node.handle;
+				st.status = node.status;
+				node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
+				file.close();
+				return;
+			}
+			else {
+				FS_AsyncHandle_ST st;
+				st.asyncHandle = node.asyncHandle;
+				st.fileHandle = node.handle;
+				st.status = node.status;
+				node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
+				file.close();
+				return;
+			}
+		}
+		return;
 	}
 
 	void doReadAll(FS_AsyncNode & node) {
@@ -167,10 +237,10 @@ private:
 
 	}
 
-	void executeIO(FS_AsyncNode & node) {
+	void executeIO(FS_AsyncNode & node, const int & index) {
 		switch (node.status) {
 		case AsyncStatus::READ:
-			doRead(node);
+			doRead(node, index);
 			break;
 		case AsyncStatus::READ_ALL:
 
@@ -184,6 +254,7 @@ private:
 		default:
 			break;
 		}
+		processingVector[index].status = AsyncStatus::NONE;
 	}
 
 	void workThread(int index) {
@@ -209,6 +280,9 @@ private:
 					size_t i = 0;
 					for (; i < processingVector.size(); ++i) {
 						if (processingVector[i].handle == it->handle) {
+							if (processingVector[i].status == NONE) {
+								continue;
+							}
 							break;
 						}
 					}
@@ -244,9 +318,10 @@ private:
 				processingVector[index].handle = node.handle;
 				processingVector[index].handle_st = node.handle_st;
 				processingVector[index].status = node.status;
+				processingVector[index].asyncHandle = node.asyncHandle;
 				asyncQueue.erase(it);
 			}
-			executeIO(node);
+			executeIO(node, index);
 		}
 	}
 
@@ -256,6 +331,13 @@ public:
 		handleIndex = 0;
 		asyncHandleIndex = 0;
 		blockSize = 4096;
+	}
+
+	void debugRun() {
+		blockSize = 1;
+		FS_Thread_Proceing tp;
+		processingVector.push_back(tp);
+		workThread(0);
 	}
 
 	FS_Handle createFileSystemHandle(const boost::filesystem::path & p) {
