@@ -171,7 +171,7 @@ private:
 		file.read((char *)node.data, target);
 		uintmax_t cnt = file.gcount();
 		node.dataPos += cnt;
-
+		
 		if (file.good()) {
 			if (node.dataPos == node.dataSize) {
 				FS_AsyncHandle_ST st;
@@ -197,35 +197,35 @@ private:
 				return;
 			}
 		}
-		if (file.bad()) {
-			if (file.eof()) {
-				FS_AsyncHandle_ST st;
-				st.asyncHandle = node.asyncHandle;
-				st.fileHandle = node.handle;
-				st.status = node.status;
-				node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
-				file.close();
-				return;
-			}
-			else if (file.fail()) {
-				FS_AsyncHandle_ST st;
-				st.asyncHandle = node.asyncHandle;
-				st.fileHandle = node.handle;
-				st.status = node.status;
-				node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
-				file.close();
-				return;
-			}
-			else {
-				FS_AsyncHandle_ST st;
-				st.asyncHandle = node.asyncHandle;
-				st.fileHandle = node.handle;
-				st.status = node.status;
-				node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
-				file.close();
-				return;
-			}
+
+		if (file.eof()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
+			file.close();
+			return;
 		}
+		else if (file.fail()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
+			file.close();
+			return;
+		}
+		else if(file.bad()){
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
+			file.close();
+			return;
+		}
+
 		return;
 	}
 
@@ -334,7 +334,7 @@ public:
 	}
 
 	void debugRun() {
-		blockSize = 1;
+		//blockSize = 1;
 		FS_Thread_Proceing tp;
 		processingVector.push_back(tp);
 		workThread(0);

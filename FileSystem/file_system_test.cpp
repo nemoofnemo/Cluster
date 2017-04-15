@@ -18,7 +18,7 @@ void test(void) {
 	FileSystem::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("test.txt"));
 	FileSystem::FS_AsyncHandle_ST ah = fs.createAsyncHandleST(h);
 	char * temp = new char[256];
-	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), temp, 256, 0, 6);
+	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), temp, 256, 999, 6);
 	fs.debugRun();
 }
 
