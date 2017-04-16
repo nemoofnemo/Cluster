@@ -816,6 +816,7 @@ public:
 			postToAsyncQueue(node, QueueOperation::PUSH_FRONT);
 		}
 		semaphora.post();
+		return true;
 	}
 };
 
