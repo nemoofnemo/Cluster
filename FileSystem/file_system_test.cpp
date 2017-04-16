@@ -15,10 +15,11 @@ public:
 void test(void) {
 	FileSystem fs;
 	fs.init();
-	FileSystem::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("test.txt"));
+	FileSystem::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("test2.txt"));
 	FileSystem::FS_AsyncHandle_ST ah = fs.createAsyncHandleST(h);
 	char * temp = new char[256];
-	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), temp, 256, 999, 6);
+	//fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), temp, 256, 999, 6);
+	fs.asyncAppendWrite(ah, boost::shared_ptr<cb>(new cb), "filesystem", 10);
 	fs.debugRun();
 }
 
@@ -35,17 +36,9 @@ int main(void) {
 		it++;
 	}*/
 	/*fstream f;
-	f.open("test.txt", ios::in | ios::binary);
-	char temp[100] = { 0 };
-	f.read(temp, 100);
-	cout << f.gcount() << endl;
-	cout << temp << endl;
-	if (f.good()) {
-		puts("111");
-	}
-	if (f.eof()) {
-		puts("2222");
-	}
+	f.open("test2.txt", ios::out | ios::binary | ios::ate | ios::app);
+	char temp[100] = { 'a' };
+	f.write(temp, 5);
 	f.close();*/
 	test();
 	return 0;

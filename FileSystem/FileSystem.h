@@ -351,7 +351,9 @@ private:
 		file.seekp(node.fileStart + node.dataPos);
 		uintmax_t target = (node.dataSize > blockSize) ? blockSize : node.dataSize;
 		file.write((char *)node.data, target);
-		uintmax_t cnt = file.gcount();
+		file.flush();
+		/*uintmax_t cnt = file.gcount();*/
+		uintmax_t cnt = target;
 		node.dataPos += cnt;
 
 		if (file.good()) {
@@ -428,7 +430,7 @@ private:
 
 	void doAppendWrite(FS_AsyncNode & node, const int & index) {
 		std::fstream file;
-		file.open(node.handle_st->fullPath.string(), std::ios::binary | std::ios::out | std::ios::ate);
+		file.open(node.handle_st->fullPath.string(), std::ios::binary | std::ios::out | std::ios::ate | std::ios::app);
 		if (!file.is_open()) {
 			FS_AsyncHandle_ST st;
 			st.asyncHandle = node.asyncHandle;
@@ -438,10 +440,12 @@ private:
 				node.callback->run(st, ErrorCode::OPEN_FAIL, node.data, 0);
 			return;
 		}
-
 		uintmax_t target = (node.dataSize > blockSize) ? blockSize : node.dataSize;
+		file.seekp(0, std::ios::end);
 		file.write((char *)node.data, target);
-		uintmax_t cnt = file.gcount();
+		file.flush();
+		//WARNING: cnt = target
+		uintmax_t cnt = target;
 		node.dataPos += cnt;
 
 		if (file.good()) {
@@ -557,7 +561,6 @@ private:
 			doUnknownError(node, index);
 			break;
 		}
-		
 	}
 
 	void workThread(int index) {
