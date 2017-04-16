@@ -26,9 +26,9 @@ namespace nemo {
 
 class FileSystem {
 public:
-	enum QueueOperation {PUSH_BACK,PUSH_FRONT};
+	enum QueueOperation { PUSH_BACK, PUSH_FRONT };
 	enum AsyncStatus { NONE, APPEND_WRITE, WRITE, READ, READ_ALL, ABORT, ERROR };
-	enum ErrorCode {DONE,PENDING,END_OF_FILE,OPEN_FAIL,BAD_STREAM,IO_FAIL,UNKNOWN_ERROR};
+	enum ErrorCode { DONE, PENDING, END_OF_FILE, OPEN_FAIL, BAD_STREAM, IO_FAIL, UNKNOWN_ERROR };
 
 	typedef uintmax_t FS_Handle;
 	typedef uintmax_t FS_AsyncHandle;
@@ -98,7 +98,7 @@ private:
 			count--;
 		}
 	};
-	
+
 	std::map<FS_Handle, FS_Handle_ST> fsHandleMap;
 
 	struct FS_Thread_Proceing {
@@ -132,7 +132,7 @@ private:
 	uintmax_t blockSize;
 
 private:
-	
+
 	void postToAsyncQueue(const FS_AsyncNode & node, QueueOperation op = QueueOperation::PUSH_BACK) {
 		if (op == QueueOperation::PUSH_BACK) {
 			asyncQueue.push_back(node);
@@ -163,7 +163,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st,ErrorCode::OPEN_FAIL,node.data,0);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::OPEN_FAIL, node.data, 0);
 			return;
 		}
 		file.seekg(node.fileStart + node.dataPos);
@@ -171,14 +172,15 @@ private:
 		file.read((char *)node.data, target);
 		uintmax_t cnt = file.gcount();
 		node.dataPos += cnt;
-		
+
 		if (file.good()) {
 			if (node.dataPos == node.dataSize) {
 				FS_AsyncHandle_ST st;
 				st.asyncHandle = node.asyncHandle;
 				st.fileHandle = node.handle;
 				st.status = node.status;
-				node.callback->run(st, ErrorCode::DONE, node.data, cnt);
+				if (node.callback != NULL)
+					node.callback->run(st, ErrorCode::DONE, node.data, cnt);
 				file.close();
 				return;
 			}
@@ -187,7 +189,8 @@ private:
 				st.asyncHandle = node.asyncHandle;
 				st.fileHandle = node.handle;
 				st.status = node.status;
-				node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
+				if (node.callback != NULL)
+					node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
 				file.close();
 				{
 					boost::lock_guard<boost::shared_mutex> lg(lock);
@@ -203,7 +206,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
 			file.close();
 			return;
 		}
@@ -212,16 +216,18 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
 			file.close();
 			return;
 		}
-		else if(file.bad()){
+		else if (file.bad()) {
 			FS_AsyncHandle_ST st;
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
 			file.close();
 			return;
 		}
@@ -230,7 +236,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, cnt);
 			file.close();
 			return;
 		}
@@ -239,7 +246,7 @@ private:
 	}
 
 	void doReadAll(FS_AsyncNode & node, const int & index) {
-
+		//todo
 	}
 
 	void doWrite(FS_AsyncNode & node, const int & index) {
@@ -250,7 +257,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::OPEN_FAIL, node.data, 0);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::OPEN_FAIL, node.data, 0);
 			return;
 		}
 		file.seekp(node.fileStart + node.dataPos);
@@ -265,7 +273,8 @@ private:
 				st.asyncHandle = node.asyncHandle;
 				st.fileHandle = node.handle;
 				st.status = node.status;
-				node.callback->run(st, ErrorCode::DONE, node.data, cnt);
+				if (node.callback != NULL)
+					node.callback->run(st, ErrorCode::DONE, node.data, cnt);
 				file.close();
 				return;
 			}
@@ -274,7 +283,8 @@ private:
 				st.asyncHandle = node.asyncHandle;
 				st.fileHandle = node.handle;
 				st.status = node.status;
-				node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
+				if (node.callback != NULL)
+					node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
 				file.close();
 				{
 					boost::lock_guard<boost::shared_mutex> lg(lock);
@@ -290,7 +300,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
 			file.close();
 			return;
 		}
@@ -299,7 +310,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
 			file.close();
 			return;
 		}
@@ -308,7 +320,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
 			file.close();
 			return;
 		}
@@ -317,7 +330,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, cnt);
 			file.close();
 			return;
 		}
@@ -333,7 +347,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::OPEN_FAIL, node.data, 0);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::OPEN_FAIL, node.data, 0);
 			return;
 		}
 
@@ -348,7 +363,8 @@ private:
 				st.asyncHandle = node.asyncHandle;
 				st.fileHandle = node.handle;
 				st.status = node.status;
-				node.callback->run(st, ErrorCode::DONE, node.data, cnt);
+				if (node.callback != NULL)
+					node.callback->run(st, ErrorCode::DONE, node.data, cnt);
 				file.close();
 				return;
 			}
@@ -357,7 +373,8 @@ private:
 				st.asyncHandle = node.asyncHandle;
 				st.fileHandle = node.handle;
 				st.status = node.status;
-				node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
+				if (node.callback != NULL)
+					node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
 				file.close();
 				{
 					boost::lock_guard<boost::shared_mutex> lg(lock);
@@ -373,7 +390,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
 			file.close();
 			return;
 		}
@@ -382,7 +400,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
 			file.close();
 			return;
 		}
@@ -391,7 +410,8 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
 			file.close();
 			return;
 		}
@@ -400,12 +420,33 @@ private:
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, cnt);
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, 0);
 			file.close();
 			return;
 		}
 
 		return;
+	}
+
+	void doAbort(FS_AsyncNode & node, const int & index) {
+		if (node.callback != NULL) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::DONE, node.data, 0);
+		}
+	}
+
+	void doUnknownError(FS_AsyncNode & node, const int & index) {
+		if (node.callback != NULL) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, 0);
+		}
 	}
 
 	void executeIO(FS_AsyncNode & node, const int & index) {
@@ -423,18 +464,19 @@ private:
 			doAppendWrite(node, index);
 			break;
 		case AsyncStatus::ABORT:
-
+			doAbort(node, index);
 			break;
 		default:
+			doUnknownError(node, index);
 			break;
 		}
-		processingVector[index].status = AsyncStatus::NONE;
+		
 	}
 
 	void workThread(int index) {
 		while (true) {
 			bool callbackFlag = false;
-			
+
 			while (asyncQueue.size() == 0) {
 				semaphora.wait();
 			}
@@ -496,6 +538,7 @@ private:
 				asyncQueue.erase(it);
 			}
 			executeIO(node, index);
+			processingVector[index].status = AsyncStatus::NONE;
 		}
 	}
 
@@ -521,7 +564,7 @@ public:
 		FS_Handle_ST st;
 		st.handle = ret;
 		st.fullPath = p;
-		fsHandleMap.insert(std::pair<FS_Handle,FS_Handle_ST>(ret, st));
+		fsHandleMap.insert(std::pair<FS_Handle, FS_Handle_ST>(ret, st));
 		return ret;
 	}
 
@@ -542,7 +585,7 @@ public:
 		return ret;
 	}
 
-	bool asyncRead(FS_AsyncHandle_ST & h,const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
+	bool asyncRead(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
 		{
 			boost::lock_guard<boost::shared_mutex> lg(lock);
 			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
@@ -669,7 +712,15 @@ public:
 		if (it == fsHandleMap.end()) {
 			return false;
 		}
-		//todo
+		{
+			boost::lock_guard<boost::shared_mutex> lg(lock);
+			FS_AsyncNode node;
+			node.status = AsyncStatus::WRITE;
+			node.handle = h.fileHandle;
+			node.asyncHandle = h.asyncHandle;
+			node.handle_st = &it->second;
+			postToAsyncQueue(node);
+		}
 	}
 };
 
