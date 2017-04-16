@@ -28,7 +28,7 @@ class FileSystem {
 public:
 	enum QueueOperation {PUSH_BACK,PUSH_FRONT};
 	enum AsyncStatus { NONE, APPEND_WRITE, WRITE, READ, READ_ALL, ABORT, ERROR };
-	enum ErrorCode {DONE,PENDING,END_OF_FILE,OPEN_FAIL,BAD_STREAM,IO_FAIL};
+	enum ErrorCode {DONE,PENDING,END_OF_FILE,OPEN_FAIL,BAD_STREAM,IO_FAIL,UNKNOWN_ERROR};
 
 	typedef uintmax_t FS_Handle;
 	typedef uintmax_t FS_AsyncHandle;
@@ -225,16 +225,187 @@ private:
 			file.close();
 			return;
 		}
+		else {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, cnt);
+			file.close();
+			return;
+		}
 
 		return;
 	}
 
-	void doReadAll(FS_AsyncNode & node) {
+	void doReadAll(FS_AsyncNode & node, const int & index) {
 
 	}
 
-	void doWrite(FS_AsyncNode & node) {
+	void doWrite(FS_AsyncNode & node, const int & index) {
+		std::fstream file;
+		file.open(node.handle_st->fullPath.string(), std::ios::binary | std::ios::out);
+		if (!file.is_open()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::OPEN_FAIL, node.data, 0);
+			return;
+		}
+		file.seekp(node.fileStart + node.dataPos);
+		uintmax_t target = (node.dataSize > blockSize) ? blockSize : node.dataSize;
+		file.write((char *)node.data, target);
+		uintmax_t cnt = file.gcount();
+		node.dataPos += cnt;
 
+		if (file.good()) {
+			if (node.dataPos == node.dataSize) {
+				FS_AsyncHandle_ST st;
+				st.asyncHandle = node.asyncHandle;
+				st.fileHandle = node.handle;
+				st.status = node.status;
+				node.callback->run(st, ErrorCode::DONE, node.data, cnt);
+				file.close();
+				return;
+			}
+			if (node.dataPos < node.dataSize) {
+				FS_AsyncHandle_ST st;
+				st.asyncHandle = node.asyncHandle;
+				st.fileHandle = node.handle;
+				st.status = node.status;
+				node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
+				file.close();
+				{
+					boost::lock_guard<boost::shared_mutex> lg(lock);
+					asyncQueue.push_back(node);
+				}
+				semaphora.post();
+				return;
+			}
+		}
+
+		if (file.eof()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
+			file.close();
+			return;
+		}
+		else if (file.fail()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
+			file.close();
+			return;
+		}
+		else if (file.bad()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
+			file.close();
+			return;
+		}
+		else {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, cnt);
+			file.close();
+			return;
+		}
+
+		return;
+	}
+
+	void doAppendWrite(FS_AsyncNode & node, const int & index) {
+		std::fstream file;
+		file.open(node.handle_st->fullPath.string(), std::ios::binary | std::ios::out | std::ios::ate);
+		if (!file.is_open()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::OPEN_FAIL, node.data, 0);
+			return;
+		}
+
+		uintmax_t target = (node.dataSize > blockSize) ? blockSize : node.dataSize;
+		file.write((char *)node.data, target);
+		uintmax_t cnt = file.gcount();
+		node.dataPos += cnt;
+
+		if (file.good()) {
+			if (node.dataPos == node.dataSize) {
+				FS_AsyncHandle_ST st;
+				st.asyncHandle = node.asyncHandle;
+				st.fileHandle = node.handle;
+				st.status = node.status;
+				node.callback->run(st, ErrorCode::DONE, node.data, cnt);
+				file.close();
+				return;
+			}
+			if (node.dataPos < node.dataSize) {
+				FS_AsyncHandle_ST st;
+				st.asyncHandle = node.asyncHandle;
+				st.fileHandle = node.handle;
+				st.status = node.status;
+				node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
+				file.close();
+				{
+					boost::lock_guard<boost::shared_mutex> lg(lock);
+					asyncQueue.push_back(node);
+				}
+				semaphora.post();
+				return;
+			}
+		}
+
+		if (file.eof()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::END_OF_FILE, node.data, cnt);
+			file.close();
+			return;
+		}
+		else if (file.fail()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::IO_FAIL, node.data, cnt);
+			file.close();
+			return;
+		}
+		else if (file.bad()) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::BAD_STREAM, node.data, cnt);
+			file.close();
+			return;
+		}
+		else {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, cnt);
+			file.close();
+			return;
+		}
+
+		return;
 	}
 
 	void executeIO(FS_AsyncNode & node, const int & index) {
@@ -246,9 +417,12 @@ private:
 
 			break;
 		case AsyncStatus::WRITE:
-
+			doWrite(node, index);
 			break;
 		case AsyncStatus::APPEND_WRITE:
+			doAppendWrite(node, index);
+			break;
+		case AsyncStatus::ABORT:
 
 			break;
 		default:
