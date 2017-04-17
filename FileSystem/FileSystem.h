@@ -126,10 +126,12 @@ private:
 	std::deque<FS_AsyncNode> asyncQueue;
 	boost::shared_mutex lock;
 	FS_Semaphora semaphora;
+	int threadNum;
 	std::list<boost::shared_ptr<boost::thread>> threadList;
 	uintmax_t handleIndex;
 	FS_AsyncHandle asyncHandleIndex;
 	uintmax_t blockSize;
+	bool exitFlag;
 
 private:
 
@@ -635,9 +637,18 @@ private:
 public:
 
 	void init(void) {
+		boost::lock_guard<boost::shared_mutex> lg(lock);
 		handleIndex = 0;
 		asyncHandleIndex = 0;
 		blockSize = 4096;
+		threadNum = 2;
+		exitFlag = false;
+
+		for (int i = 0; i < threadNum; ++i) {
+			FS_Thread_Proceing tp;
+			processingVector.push_back(tp);
+			threadList.push_back(boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&FileSystem::workThread, this, i))));
+		}
 	}
 
 	void debugRun() {
@@ -645,6 +656,14 @@ public:
 		FS_Thread_Proceing tp;
 		processingVector.push_back(tp);
 		workThread(0);
+	}
+
+	void run(void) {
+
+	}
+
+	void stop(void) {
+		
 	}
 
 	FS_Handle createFileSystemHandle(const boost::filesystem::path & p) {
@@ -666,7 +685,6 @@ public:
 				fsHandleMap.erase(it);
 			}
 		}
-		//todo : post abort?
 	}
 
 	FS_AsyncHandle_ST createAsyncHandleST(FS_Handle h) {
