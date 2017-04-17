@@ -27,7 +27,7 @@ namespace nemo {
 class FileSystem {
 public:
 	enum QueueOperation { PUSH_BACK, PUSH_FRONT };
-	enum AsyncStatus { NONE, APPEND_WRITE, WRITE, READ, READ_ALL, ABORT, ERROR };
+	enum AsyncStatus { NONE, APPEND_WRITE, WRITE, READ, READ_ALL, ABORT, ERROR, EXIT };
 	enum ErrorCode { DONE, PENDING, END_OF_FILE, OPEN_FAIL, BAD_STREAM, IO_FAIL, UNKNOWN_ERROR };
 
 	typedef uintmax_t FS_Handle;
@@ -659,7 +659,7 @@ public:
 	}
 
 	void run(void) {
-
+		
 	}
 
 	void stop(void) {
