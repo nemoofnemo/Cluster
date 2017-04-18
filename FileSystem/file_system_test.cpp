@@ -2,9 +2,9 @@
 
 using namespace std;
 
-class cb : public FileSystem::FileSystemCallback {
+class cb : public FileSystemIO::FileSystemIOCallback {
 public:
-	void run(const FileSystem::FS_AsyncHandle_ST & ast, FileSystem::ErrorCode e, void * data, uintmax_t count) {
+	void run(const FileSystemIO::FS_AsyncHandle_ST & ast, FileSystemIO::ErrorCode e, void * data, uintmax_t count) {
 		cout << boost::this_thread::get_id() << ' ' << count << endl;
 		for (int i = 0; i < count; ++i) {
 			putchar(*(((char*)data) + i));
@@ -16,12 +16,12 @@ public:
 
 void test(void) {
 	//char * temp = new char[256];
-	FileSystem fs;
+	FileSystemIO fs;
 	fs.init();
-	FileSystem::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("test.txt"));
-	FileSystem::FS_Handle h2 = fs.createFileSystemHandle(boost::filesystem::path("test2.txt"));
+	FileSystemIO::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("test.txt"));
+	FileSystemIO::FS_Handle h2 = fs.createFileSystemHandle(boost::filesystem::path("test2.txt"));
 	
-	FileSystem::FS_AsyncHandle_ST ah = fs.createAsyncHandleST(h);
+	FileSystemIO::FS_AsyncHandle_ST ah = fs.createAsyncHandleST(h);
 	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), new char[256], 256, 0, 6);
 	ah = fs.createAsyncHandleST(h2);
 	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), new char[256], 256, 0, 6);

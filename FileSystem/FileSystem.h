@@ -24,7 +24,7 @@ namespace nemo {
 	class FileSystemIO;
 }
 
-class FileSystem {
+class FileSystemIO {
 public:
 	enum QueueOperation { PUSH_BACK, PUSH_FRONT };
 	enum AsyncStatus { NONE, APPEND_WRITE, WRITE, READ, READ_ALL, ABORT, ERROR, EXIT };
@@ -44,21 +44,21 @@ public:
 		boost::filesystem::path fullPath;
 	};
 
-	class FileSystemCallback {
+	class FileSystemIOCallback {
 	public:
-		void operator=(const FileSystemCallback & cb) {
+		void operator=(const FileSystemIOCallback & cb) {
 			//..
 		}
 
-		FileSystemCallback(const FileSystemCallback & cb) {
+		FileSystemIOCallback(const FileSystemIOCallback & cb) {
 			//..
 		}
 
-		FileSystemCallback() {
+		FileSystemIOCallback() {
 			//...
 		}
 
-		virtual ~FileSystemCallback() {
+		virtual ~FileSystemIOCallback() {
 
 		}
 
@@ -119,7 +119,7 @@ private:
 		uintmax_t dataPos = 0;
 		uintmax_t fileStart = 0;
 		uintmax_t filePos = 0;
-		boost::shared_ptr<FileSystemCallback> callback;
+		boost::shared_ptr<FileSystemIOCallback> callback;
 	};
 
 	std::vector<FS_Thread_Proceing> processingVector;
@@ -661,7 +661,24 @@ private:
 		return;
 	}
 
+private:
+	FileSystemIO(const FileSystemIO & fs) {
+
+	}
+
+	void operator=(const FileSystemIO & fs) {
+
+	}
+
 public:
+
+	FileSystemIO() {
+
+	}
+
+	~FileSystemIO() {
+
+	}
 
 	void init(void) {
 		boost::lock_guard<boost::shared_mutex> lg(lock);
@@ -684,7 +701,7 @@ public:
 		for (int i = 0; i < threadNum; ++i) {
 			FS_Thread_Proceing tp;
 			processingVector.push_back(tp);
-			threadList.push_back(boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&FileSystem::workThread, this, i))));
+			threadList.push_back(boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&FileSystemIO::workThread, this, i))));
 		}
 	}
 
@@ -738,7 +755,7 @@ public:
 		return ret;
 	}
 
-	bool asyncRead(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
+	bool asyncRead(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemIOCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
 		if (exitFlag || ptr == NULL || limit == 0 || size == 0) {
 			return false;
 		}
@@ -773,7 +790,7 @@ public:
 		return true;
 	}
 
-	bool asyncReadAll(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t size) {
+	bool asyncReadAll(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemIOCallback> & cb, void * ptr, uintmax_t limit, uintmax_t size) {
 		if (exitFlag || ptr == NULL || limit == 0 || size == 0) {
 			return false;
 		}
@@ -812,7 +829,7 @@ public:
 		return true;
 	}
 
-	bool asyncAppendWrite(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t size) {
+	bool asyncAppendWrite(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemIOCallback> & cb, void * ptr, uintmax_t size) {
 		if (exitFlag || ptr == NULL || size == 0) {
 			return false;
 		}
@@ -846,7 +863,7 @@ public:
 		return true;
 	}
 
-	bool asyncWrite(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
+	bool asyncWrite(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemIOCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
 		if (exitFlag || ptr == NULL || limit == 0 || size == 0) {
 			return false;
 		}
