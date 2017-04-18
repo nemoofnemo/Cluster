@@ -170,12 +170,15 @@ private:
 			return;
 		}
 		file.seekg(node.fileStart + node.dataPos);
+
 		uintmax_t target = (node.dataSize > blockSize) ? blockSize : node.dataSize;
+		target = (target > node.dataLimit) ? node.dataLimit : target;
+
 		file.read((char *)node.data, target);
 		uintmax_t cnt = file.gcount();
 		node.dataPos += cnt;
 
-		if (file.good()) {
+		if (file.good() && cnt > 0) {
 			if (node.dataPos == node.dataSize) {
 				FS_AsyncHandle_ST st;
 				st.asyncHandle = node.asyncHandle;
@@ -261,11 +264,13 @@ private:
 		}
 		file.seekg(node.fileStart + node.dataPos);
 		uintmax_t target = (node.dataSize > blockSize) ? blockSize : node.dataSize;
+		target = (target > node.dataLimit) ? node.dataLimit : target;
+
 		file.read((char *)node.data, target);
 		uintmax_t cnt = file.gcount();
 		node.dataPos += cnt;
 
-		if (file.good()) {
+		if (file.good() && cnt > 0) {
 			if (node.dataPos == node.dataSize) {
 				FS_AsyncHandle_ST st;
 				st.asyncHandle = node.asyncHandle;
@@ -350,8 +355,11 @@ private:
 				node.callback->run(st, ErrorCode::OPEN_FAIL, node.data, 0);
 			return;
 		}
+
 		file.seekp(node.fileStart + node.dataPos);
 		uintmax_t target = (node.dataSize > blockSize) ? blockSize : node.dataSize;
+		target = (target > node.dataLimit) ? node.dataLimit : target;
+
 		file.write((char *)node.data, target);
 		file.flush();
 		/*uintmax_t cnt = file.gcount();*/
@@ -443,6 +451,8 @@ private:
 			return;
 		}
 		uintmax_t target = (node.dataSize > blockSize) ? blockSize : node.dataSize;
+		target = (target > node.dataLimit) ? node.dataLimit : target;
+
 		file.seekp(0, std::ios::end);
 		file.write((char *)node.data, target);
 		file.flush();
@@ -640,15 +650,9 @@ private:
 				asyncQueue.erase(it);
 
 				if (node.status == AsyncStatus::EXIT) {
-					processingVector.erase(processingVector.begin() + index);
+					processingVector.erase(processingVector.begin() + index);					
 					break;
 				}
-			}
-
-			if (exitFlag) {
-				doExit(node, index);
-				processingVector[index].status = AsyncStatus::NONE;
-				continue;
 			}
 
 			executeIO(node, index);
@@ -735,7 +739,7 @@ public:
 	}
 
 	bool asyncRead(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
-		if (exitFlag) {
+		if (exitFlag || ptr == NULL || limit == 0 || size == 0) {
 			return false;
 		}
 
@@ -770,7 +774,7 @@ public:
 	}
 
 	bool asyncReadAll(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t size) {
-		if (exitFlag) {
+		if (exitFlag || ptr == NULL || limit == 0 || size == 0) {
 			return false;
 		}
 		
@@ -809,7 +813,7 @@ public:
 	}
 
 	bool asyncAppendWrite(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t size) {
-		if (exitFlag) {
+		if (exitFlag || ptr == NULL || size == 0) {
 			return false;
 		}
 		
@@ -843,7 +847,7 @@ public:
 	}
 
 	bool asyncWrite(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
-		if (exitFlag) {
+		if (exitFlag || ptr == NULL || limit == 0 || size == 0) {
 			return false;
 		}
 
