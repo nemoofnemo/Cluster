@@ -542,6 +542,16 @@ private:
 		}
 	}
 
+	void doExit(FS_AsyncNode & node, const int & index) {
+		if (node.callback != NULL) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			node.callback->run(st, ErrorCode::UNKNOWN_ERROR, node.data, 0);
+		}
+	}
+
 	void executeIO(FS_AsyncNode & node, const int & index) {
 		switch (node.status) {
 		case AsyncStatus::READ:
@@ -628,10 +638,23 @@ private:
 				processingVector[index].status = node.status;
 				processingVector[index].asyncHandle = node.asyncHandle;
 				asyncQueue.erase(it);
+
+				if (node.status == AsyncStatus::EXIT) {
+					processingVector.erase(processingVector.begin() + index);
+					break;
+				}
 			}
+
+			if (exitFlag) {
+				doExit(node, index);
+				processingVector[index].status = AsyncStatus::NONE;
+				continue;
+			}
+
 			executeIO(node, index);
 			processingVector[index].status = AsyncStatus::NONE;
 		}
+		return;
 	}
 
 public:
@@ -643,12 +666,6 @@ public:
 		blockSize = 4096;
 		threadNum = 2;
 		exitFlag = false;
-
-		for (int i = 0; i < threadNum; ++i) {
-			FS_Thread_Proceing tp;
-			processingVector.push_back(tp);
-			threadList.push_back(boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&FileSystem::workThread, this, i))));
-		}
 	}
 
 	void debugRun() {
@@ -659,11 +676,32 @@ public:
 	}
 
 	void run(void) {
-		
+		boost::lock_guard<boost::shared_mutex> lg(lock);
+		for (int i = 0; i < threadNum; ++i) {
+			FS_Thread_Proceing tp;
+			processingVector.push_back(tp);
+			threadList.push_back(boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&FileSystem::workThread, this, i))));
+		}
 	}
 
 	void stop(void) {
-		
+		{
+			boost::lock_guard<boost::shared_mutex> lg(lock);
+			for (int i = 0; i < threadNum; ++i) {
+				FS_AsyncNode nd;
+				nd.status = AsyncStatus::EXIT;
+				postToAsyncQueue(nd);
+				semaphora.post();
+			}
+			exitFlag = true;
+		}
+		std::list<boost::shared_ptr<boost::thread>>::iterator it = threadList.begin();
+		std::list<boost::shared_ptr<boost::thread>>::iterator end = threadList.end();
+		while (it != end) {
+			(*it)->join();
+			it++;
+		}
+		threadList.clear();
 	}
 
 	FS_Handle createFileSystemHandle(const boost::filesystem::path & p) {
@@ -678,6 +716,9 @@ public:
 	}
 
 	void releaseFileSystemHandle(FS_Handle h) {
+		if (exitFlag) {
+			return;
+		}
 		{
 			boost::lock_guard<boost::shared_mutex> lg(lock);
 			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h);
@@ -694,6 +735,10 @@ public:
 	}
 
 	bool asyncRead(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
+		if (exitFlag) {
+			return false;
+		}
+
 		{
 			boost::lock_guard<boost::shared_mutex> lg(lock);
 			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
@@ -725,6 +770,10 @@ public:
 	}
 
 	bool asyncReadAll(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t size) {
+		if (exitFlag) {
+			return false;
+		}
+		
 		if (limit < size) {
 			return false;
 		}
@@ -760,6 +809,10 @@ public:
 	}
 
 	bool asyncAppendWrite(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t size) {
+		if (exitFlag) {
+			return false;
+		}
+		
 		{
 			boost::lock_guard<boost::shared_mutex> lg(lock);
 			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
@@ -790,6 +843,10 @@ public:
 	}
 
 	bool asyncWrite(FS_AsyncHandle_ST & h, const boost::shared_ptr<FileSystemCallback> & cb, void * ptr, uintmax_t limit, uintmax_t offset, uintmax_t size) {
+		if (exitFlag) {
+			return false;
+		}
+
 		{
 			boost::lock_guard<boost::shared_mutex> lg(lock);
 			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
@@ -820,12 +877,15 @@ public:
 	}
 
 	bool abortAsyncOperation(FS_AsyncHandle_ST & h) {
-		std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
-		if (it == fsHandleMap.end()) {
+		if (exitFlag) {
 			return false;
 		}
 		{
 			boost::lock_guard<boost::shared_mutex> lg(lock);
+			std::map<FS_Handle, FS_Handle_ST>::iterator it = fsHandleMap.find(h.fileHandle);
+			if (it == fsHandleMap.end()) {
+				return false;
+			}
 			FS_AsyncNode node;
 			node.status = AsyncStatus::WRITE;
 			node.handle = h.fileHandle;

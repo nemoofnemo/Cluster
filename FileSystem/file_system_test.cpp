@@ -5,22 +5,37 @@ using namespace std;
 class cb : public FileSystem::FileSystemCallback {
 public:
 	void run(const FileSystem::FS_AsyncHandle_ST & ast, FileSystem::ErrorCode e, void * data, uintmax_t count) {
-		cout << count << endl;
+		cout << boost::this_thread::get_id() << ' ' << count << endl;
 		for (int i = 0; i < count; ++i) {
 			putchar(*(((char*)data) + i));
 		}
+		cout << endl;
+		delete[] (char *)data;
 	}
 };
 
 void test(void) {
+	//char * temp = new char[256];
 	FileSystem fs;
 	fs.init();
-	FileSystem::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("test2.txt"));
+	FileSystem::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("test.txt"));
+	FileSystem::FS_Handle h2 = fs.createFileSystemHandle(boost::filesystem::path("test2.txt"));
+	
 	FileSystem::FS_AsyncHandle_ST ah = fs.createAsyncHandleST(h);
-	char * temp = new char[256];
-	//fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), temp, 256, 999, 6);
-	fs.asyncAppendWrite(ah, boost::shared_ptr<cb>(new cb), "filesystem", 10);
-	fs.debugRun();
+	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), new char[256], 256, 0, 6);
+	ah = fs.createAsyncHandleST(h2);
+	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), new char[256], 256, 0, 6);
+
+	ah = fs.createAsyncHandleST(h);
+	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), new char[256], 256, 0, 6);
+	ah = fs.createAsyncHandleST(h2);
+	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), new char[256], 256, 0, 6);
+	//fs.asyncAppendWrite(ah, boost::shared_ptr<cb>(new cb), "filesystem", 10);
+	//fs.debugRun();
+	fs.run();
+	boost::thread::sleep(boost::get_system_time() + boost::posix_time::seconds(40));
+	fs.stop();
+	boost::thread::sleep(boost::get_system_time() + boost::posix_time::seconds(4));
 }
 
 int main(void) {
