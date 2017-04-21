@@ -787,3 +787,4 @@ bool nemo::FileSystemIO::abortAsyncOperation(FS_AsyncHandle_ST & h) {
 	semaphora.post();
 	return true;
 }
+
