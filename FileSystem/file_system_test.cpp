@@ -11,7 +11,9 @@ public:
 			putchar(*(((char*)data) + i));
 		}
 		cout << endl;
-		delete[] (char *)data;
+
+		if(e != FileSystemIO::ErrorCode::PENDING)
+			delete[] (char *)data;
 	}
 };
 
@@ -31,8 +33,18 @@ void test(void) {
 	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), new char[256], 256, 0, 6);
 	ah = fs.createAsyncHandleST(h2);
 	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), new char[256], 256, 0, 6);
-	//fs.asyncAppendWrite(ah, boost::shared_ptr<cb>(new cb), "filesystem", 10);
-	//fs.debugRun();
+
+	fs.run();
+	boost::thread::sleep(boost::get_system_time() + boost::posix_time::seconds(4));
+	fs.stop();
+}
+
+void test2(void) {
+	FileSystemIO fs;
+	fs.init();
+	FileSystemIO::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("test.txt"));
+	FileSystemIO::FS_AsyncHandle_ST ah = fs.createAsyncHandleST(h);
+	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), new char[20], 20, 0, 6);
 	fs.run();
 	boost::thread::sleep(boost::get_system_time() + boost::posix_time::seconds(4));
 	fs.stop();
@@ -55,6 +67,7 @@ int main(void) {
 	char temp[100] = { 'a' };
 	f.write(temp, 5);
 	f.close();*/
-	test();
+	//test();
+	test2();
 	return 0;
 }

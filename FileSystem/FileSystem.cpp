@@ -129,6 +129,7 @@ void nemo::FileSystemIO::doReadAll(FS_AsyncNode & node, const int & index) {
 			node.callback->run(st, ErrorCode::OPEN_FAIL, node.data, 0);
 		return;
 	}
+
 	file.seekg(node.fileStart + node.dataPos);
 	uintmax_t target = (node.dataSize > blockSize) ? blockSize : node.dataSize;
 	target = (target > node.dataLimit) ? node.dataLimit : target;
@@ -148,6 +149,23 @@ void nemo::FileSystemIO::doReadAll(FS_AsyncNode & node, const int & index) {
 			file.close();
 			return;
 		}
+
+		if (cnt == node.dataLimit) {
+			FS_AsyncHandle_ST st;
+			st.asyncHandle = node.asyncHandle;
+			st.fileHandle = node.handle;
+			st.status = node.status;
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
+			file.close();
+			{
+				boost::lock_guard<boost::shared_mutex> lg(lock);
+				asyncQueue.push_back(node);
+			}
+			semaphora.post();
+			return;
+		}
+
 		if (node.dataPos < node.dataSize) {
 			FS_AsyncHandle_ST st;
 			st.asyncHandle = node.asyncHandle;
@@ -453,6 +471,7 @@ void nemo::FileSystemIO::executeIO(FS_AsyncNode & node, const int & index) {
 }
 
 void nemo::FileSystemIO::workThread(int index) {
+	printf("workthread:%d\n",index);
 	while (true) {
 		bool callbackFlag = false;
 
@@ -471,6 +490,12 @@ void nemo::FileSystemIO::workThread(int index) {
 			//if selected handle is processing, find next one.
 			std::deque<FS_AsyncNode>::iterator it = asyncQueue.begin();
 			std::deque<FS_AsyncNode>::iterator end = asyncQueue.end();
+			
+			//exit
+			if (it->status == AsyncStatus::EXIT) {
+				break;
+			}
+
 			while (it != end) {
 				size_t i = 0;
 				for (; i < processingVector.size(); ++i) {
@@ -515,11 +540,6 @@ void nemo::FileSystemIO::workThread(int index) {
 			processingVector[index].status = node.status;
 			processingVector[index].asyncHandle = node.asyncHandle;
 			asyncQueue.erase(it);
-
-			if (node.status == AsyncStatus::EXIT) {
-				processingVector.erase(processingVector.begin() + index);
-				break;
-			}
 		}
 
 		executeIO(node, index);
@@ -572,6 +592,7 @@ void nemo::FileSystemIO::stop(void) {
 		it++;
 	}
 	threadList.clear();
+	processingVector.clear();
 }
 
 nemo::FileSystemIO::FS_Handle nemo::FileSystemIO::createFileSystemHandle(const boost::filesystem::path & p) {
