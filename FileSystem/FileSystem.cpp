@@ -528,6 +528,7 @@ void nemo::FileSystemIO::workThread(int index) {
 	return;
 }
 
+//config filesystem io
 void nemo::FileSystemIO::init(void) {
 	boost::lock_guard<boost::shared_mutex> lg(lock);
 	handleIndex = 0;
