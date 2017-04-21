@@ -1,6 +1,7 @@
 #include "FileSystem.h"
 
 using namespace std;
+using namespace nemo;
 
 class cb : public FileSystemIO::FileSystemIOCallback {
 public:
@@ -33,9 +34,8 @@ void test(void) {
 	//fs.asyncAppendWrite(ah, boost::shared_ptr<cb>(new cb), "filesystem", 10);
 	//fs.debugRun();
 	fs.run();
-	boost::thread::sleep(boost::get_system_time() + boost::posix_time::seconds(40));
-	fs.stop();
 	boost::thread::sleep(boost::get_system_time() + boost::posix_time::seconds(4));
+	fs.stop();
 }
 
 int main(void) {
