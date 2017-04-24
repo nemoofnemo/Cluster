@@ -148,10 +148,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Cluster.cpp" />
+    <ClCompile Include="ClusterUtil.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Protocol.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cluster.h" />
+    <ClInclude Include="ClusterInclude.h" />
+    <ClInclude Include="ClusterUtil.h" />
+    <ClInclude Include="Protocol.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

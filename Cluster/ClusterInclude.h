@@ -1,0 +1,13 @@
+#pragma once
+#include <cstdlib>
+#include <iostream>
+#include <string>
+#include <map>
+#include <list>
+#include <vector>
+#include <deque>
+#include <stack>
+#include <queue>
+#include <fstream>
+#include <utility>
+#include "boost\regex.hpp"
