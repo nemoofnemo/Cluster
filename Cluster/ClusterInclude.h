@@ -10,4 +10,5 @@
 #include <queue>
 #include <fstream>
 #include <utility>
+#include <exception>
 #include "boost\regex.hpp"

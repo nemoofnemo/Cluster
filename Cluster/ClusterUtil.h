@@ -18,6 +18,9 @@ public:
 	}
 
 	ByteBuffer(size_t size) {
+		if (size == 0) {
+			m_size = Default::BLOCK_SIZE;
+		}
 		m_size = size;
 		m_data = new char[m_size];
 	}
@@ -39,13 +42,18 @@ public:
 		delete[] m_data;
 	}
 
-	void realocate(size_t n) {
-		
+	void realocate(size_t size) {
+		if (size == 0) {
+			m_size = Default::BLOCK_SIZE;
+		}
 		
 	}
 
-	char & operator[](const int & index) {
-
+	char & operator[](const size_t & index) {
+		if (index > m_size) {
+			throw std::exception("out of bound");
+		}
+		return m_data[index];
 	}
 
 };
