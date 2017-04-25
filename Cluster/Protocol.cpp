@@ -31,9 +31,11 @@ void Protocol::del(const string & key)
 		dataMap.erase(it);
 }
 
-void Protocol::match(void * data, size_t size)
+bool Protocol::match(void * data, size_t size)
 {
-
+	if (data == NULL || size <= 0) {
+		return;
+	}
 }
 
 void Protocol::allocateContent(size_t size)

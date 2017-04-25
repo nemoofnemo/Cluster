@@ -59,7 +59,7 @@ public:
 
 	void del(const string & key);
 
-	void match(void * data, size_t size);
+	bool match(void * data, size_t size);
 
 	void allocateContent(size_t size);
 
