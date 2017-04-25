@@ -7,11 +7,10 @@ namespace nemo {
 }
 
 class nemo::ByteBuffer {
-private:
+public:
 	char * m_data;
 	size_t m_size;
 
-public:
 	ByteBuffer() {
 		m_size = Default::BLOCK_SIZE;
 		m_data = new char[m_size];
@@ -42,11 +41,16 @@ public:
 		delete[] m_data;
 	}
 
-	void realocate(size_t size) {
+	void reallocate(size_t size) {
 		if (size == 0) {
 			m_size = Default::BLOCK_SIZE;
 		}
 		
+		char * temp = new char[size];
+		memcpy_s(temp, size, m_data, m_size);
+		delete[] m_data;
+		m_data = temp;
+		m_size = size;
 	}
 
 	char & operator[](const size_t & index) {

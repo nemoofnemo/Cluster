@@ -1,56 +1,52 @@
 #include "Protocol.h"
 
-/*
-	protocol format:
-	ket-value table.
-
-	key1:value1\r\n
-	key2:value2\r\n
-	.....
-	keyn:valuen\r\n
-	[ContentLength:2333]
-	\r\n
-
-	[optional appendent content(length in bytes)]:
-	data length must be specified by contentlength.
-*/
-
-using boost::regex;
-using std::map;
-using std::string;
-
-namespace nemo {
-	class Protocol;
+string & Protocol::operator[](const string & key)
+{
+	return dataMap[key];
 }
 
-class Protocol {
-private:
-	map<string, string> dataMap;
-public:
-	Protocol() {
+string & Protocol::get(const string & key)
+{
+	return dataMap[key];
+}
 
+void Protocol::set(const string & key, const string & value)
+{
+	dataMap[key] = value;
+}
+
+bool Protocol::isExist(const string & key)
+{
+	std::map<string, string>::iterator it = dataMap.find(key);
+	if (it == dataMap.end())
+		return false;
+	else
+		return true;
+}
+
+void Protocol::del(const string & key)
+{
+	std::map<string, string>::iterator it = dataMap.find(key);
+	if (it != dataMap.end())
+		dataMap.erase(it);
+}
+
+void Protocol::match(void * data, size_t size)
+{
+
+}
+
+void Protocol::allocateContent(size_t size)
+{
+	if (content != NULL) {
+		content.reset();
 	}
-
-	Protocol(Protocol & p) {
-
+	else {
+		content = boost::shared_ptr<nemo::ByteBuffer>(new nemo::ByteBuffer(size));
 	}
+}
 
-	Protocol & operator=(Protocol & p) {
-
-	}
-
-	~Protocol() {
-
-	}
-
-	const string & operator[](const string & key);
-
-	const string & get(const string & key);
-
-	const string & set(const string & key, const string & value);
-
-	bool del(const string & key);
-
-	void allocateContent(size_t size);
-
-};
+boost::shared_ptr<nemo::ByteBuffer> Protocol::getContent(void)
+{
+	return content;
+}
