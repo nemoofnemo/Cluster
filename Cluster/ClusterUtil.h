@@ -4,6 +4,8 @@
 namespace nemo {
 	enum Default{BLOCK_SIZE=4096};
 	class ByteBuffer;
+
+	void split(std::string& s, std::string& delim, std::vector< std::string >* ret);
 }
 
 class nemo::ByteBuffer {

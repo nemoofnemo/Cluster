@@ -1,29 +1,34 @@
-#include <iostream>
-#include <string>
-#include <boost\asio.hpp>
-#include <boost/thread.hpp>
-#include <boost/bind.hpp>
+#include "ClusterInclude.h"
 
 using namespace std;
-using namespace boost;
-using namespace boost::asio;
 
-io_service service;
-void func(int i) {
-	std::cout << "func called, i= " << i << std::endl;
+void split(std::string& s, std::string& delim, std::vector< std::string >* ret)
+{
+	size_t last = 0;
+	size_t index = s.find_first_of(delim, last);
+	while (index != std::string::npos)
+	{
+		ret->push_back(s.substr(last, index - last));
+		last = index + 1;
+		index = s.find_first_of(delim, last);
+	}
+	if (index - last>0)
+	{
+		ret->push_back(s.substr(last, index - last));
+	}
 }
 
-void worker_thread() {
-	service.run();
-}
+int main(void) {
+	char * ptr = "hello\r\nddfdd\r\ndsss\r\neeeee\r\ndddddddddee";
+	string str(ptr, 31);
+	std::vector< std::string > vec;
+	split(str, string("\r\n"), &vec);
+	auto it = vec.begin();
+	auto end = vec.end();
+	while (it != end) {
+		cout << *it << endl;
+		++it;
+	}
 
-int main(int argc, char* argv[]) {
-	for (int i = 0; i < 10; ++i)
-		service.post(boost::bind(func, i));
-	boost::thread_group threads;
-	for (int i = 0; i < 3; ++i)
-		threads.create_thread(worker_thread);
-	// 等待所有线程被创建完
-	boost::this_thread::sleep(boost::posix_time::millisec(500));
-	threads.join_all();
+	return 0;
 }

@@ -1,6 +1,8 @@
 #pragma once
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
+#include <exception>
 #include <string>
 #include <map>
 #include <list>
@@ -11,4 +13,8 @@
 #include <fstream>
 #include <utility>
 #include <exception>
-#include "boost\regex.hpp"
+#include "boost/regex.hpp"
+#include "boost/asio.hpp"
+#include "boost/thread.hpp"
+#include "boost/bind.hpp"
+#include "boost/algorithm/string.hpp"

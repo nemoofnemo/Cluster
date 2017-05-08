@@ -34,8 +34,14 @@ void Protocol::del(const string & key)
 bool Protocol::match(void * data, size_t size)
 {
 	if (data == NULL || size <= 0) {
-		return;
+		return false;
 	}
+	char * ptr = (char *)data;
+	string str(ptr, size);
+	std::vector< std::string > vec;
+	nemo::split(str, string("\r\n"), &vec);
+
+	return true;
 }
 
 void Protocol::allocateContent(size_t size)
