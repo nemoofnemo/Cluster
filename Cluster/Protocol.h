@@ -25,7 +25,7 @@ namespace nemo {
 	class Protocol;
 }
 
-class Protocol {
+class nemo::Protocol {
 private:
 	map<string, string> dataMap;
 	boost::shared_ptr<nemo::ByteBuffer> content;
@@ -59,7 +59,7 @@ public:
 
 	void del(const string & key);
 
-	bool match(void * data, size_t size);
+	bool match(const void * data, size_t size);
 
 	void allocateContent(size_t size);
 

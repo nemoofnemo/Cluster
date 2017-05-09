@@ -1,21 +1,21 @@
 #include "Protocol.h"
 
-string & Protocol::operator[](const string & key)
+string & nemo::Protocol::operator[](const string & key)
 {
 	return dataMap[key];
 }
 
-string & Protocol::get(const string & key)
+string & nemo::Protocol::get(const string & key)
 {
 	return dataMap[key];
 }
 
-void Protocol::set(const string & key, const string & value)
+void nemo::Protocol::set(const string & key, const string & value)
 {
 	dataMap[key] = value;
 }
 
-bool Protocol::isExist(const string & key)
+bool nemo::Protocol::isExist(const string & key)
 {
 	std::map<string, string>::iterator it = dataMap.find(key);
 	if (it == dataMap.end())
@@ -24,14 +24,14 @@ bool Protocol::isExist(const string & key)
 		return true;
 }
 
-void Protocol::del(const string & key)
+void nemo::Protocol::del(const string & key)
 {
 	std::map<string, string>::iterator it = dataMap.find(key);
 	if (it != dataMap.end())
 		dataMap.erase(it);
 }
 
-bool Protocol::match(void * data, size_t size)
+bool nemo::Protocol::match(const void * data, size_t size)
 {
 	dataMap.clear();
 	if (data == NULL || size <= 0) {
@@ -39,21 +39,23 @@ bool Protocol::match(void * data, size_t size)
 	}
 	nemo::ByteBuffer buf(size+1);
 	buf.memcpy(data, size);
-	buf[size + 1] = '\0';
+	buf[size] = 0;
 
 	const char * ptr = buf.getData();
-	const char * last = NULL;
 	boost::cmatch w;
-	boost::regex r(R"((\w*?)\s\s)");
+	boost::regex r(R"((.*?)\s\s)");
 	boost::cmatch w2;
 	boost::regex r2(R"((\w+):(\w+))");
 	bool blankLine = false;
-
+	puts(ptr);
+	puts("--------------");
 	while (boost::regex_search(ptr, w, r)) {
+		ptr = w[0].second;
 		if (w[1].length() == 0) {
 			blankLine = true;
 			break;
 		}
+		std::cout <<w[0].first << w[1] << std::endl;
 		if (boost::regex_match(w[1].first, w[1].second, w2, r2)) {
 			dataMap.insert(std::pair<string, string>(w2[1],w2[2]));
 		}
@@ -61,22 +63,38 @@ bool Protocol::match(void * data, size_t size)
 			dataMap.clear();
 			return false;
 		}
-		ptr = w[0].second;
 	}
 	
+	if (dataMap.size() == 0) {
+		return false;
+	}
+
 	if (!blankLine) {
 		dataMap.clear();
 		return false;
 	}
 
-	if (ptr - buf.getData() != 0) {
-
+	//end of data?
+	size_t cnt = ptr - buf.getData();
+	if (cnt != size) {
+		std::map<string, string>::iterator temp = dataMap.find("ContentLength");
+		if (temp == dataMap.end()) {
+			dataMap.clear();
+			return false;
+		}
+		int contLen = atoi(temp->second.c_str());
+		if (contLen != size - cnt) {
+			dataMap.clear();
+			return false;
+		}
+		content = boost::shared_ptr<nemo::ByteBuffer>(new nemo::ByteBuffer(contLen));
+		content->memcpy((void*)ptr, contLen);
 	}
 
 	return true;
 }
 
-void Protocol::allocateContent(size_t size)
+void nemo::Protocol::allocateContent(size_t size)
 {
 	if (content != NULL) {
 		content.reset();
@@ -86,7 +104,7 @@ void Protocol::allocateContent(size_t size)
 	}
 }
 
-boost::shared_ptr<nemo::ByteBuffer> Protocol::getContent(void)
+boost::shared_ptr<nemo::ByteBuffer> nemo::Protocol::getContent(void)
 {
 	return content;
 }

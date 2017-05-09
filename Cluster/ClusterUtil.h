@@ -63,7 +63,7 @@ public:
 		return m_data[index];
 	}
 
-	void memcpy(void * src, size_t cnt) {
+	void memcpy(const void * src, size_t cnt) {
 		if (cnt == 0 || src == NULL) {
 			return;
 		}
