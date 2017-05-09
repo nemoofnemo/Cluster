@@ -33,13 +33,45 @@ void Protocol::del(const string & key)
 
 bool Protocol::match(void * data, size_t size)
 {
+	dataMap.clear();
 	if (data == NULL || size <= 0) {
 		return false;
 	}
-	char * ptr = (char *)data;
-	string str(ptr, size);
-	std::vector< std::string > vec;
-	nemo::split(str, string("\r\n"), &vec);
+	nemo::ByteBuffer buf(size+1);
+	buf.memcpy(data, size);
+	buf[size + 1] = '\0';
+
+	const char * ptr = buf.getData();
+	const char * last = NULL;
+	boost::cmatch w;
+	boost::regex r(R"((\w*?)\s\s)");
+	boost::cmatch w2;
+	boost::regex r2(R"((\w+):(\w+))");
+	bool blankLine = false;
+
+	while (boost::regex_search(ptr, w, r)) {
+		if (w[1].length() == 0) {
+			blankLine = true;
+			break;
+		}
+		if (boost::regex_match(w[1].first, w[1].second, w2, r2)) {
+			dataMap.insert(std::pair<string, string>(w2[1],w2[2]));
+		}
+		else {
+			dataMap.clear();
+			return false;
+		}
+		ptr = w[0].second;
+	}
+	
+	if (!blankLine) {
+		dataMap.clear();
+		return false;
+	}
+
+	if (ptr - buf.getData() != 0) {
+
+	}
 
 	return true;
 }
