@@ -63,5 +63,7 @@ public:
 
 	void allocateContent(size_t size);
 
+	void setContentLength(size_t size);
+
 	boost::shared_ptr<nemo::ByteBuffer> getContent(void);
 };
