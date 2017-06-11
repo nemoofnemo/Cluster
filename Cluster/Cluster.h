@@ -17,7 +17,7 @@ private:
 		boost::asio::ip::udp::endpoint ep;
 		uintmax_t timestamp;
 	};
-
+	uintmax_t serverIndex;
 	std::map<uintmax_t, ServerNode> serverMap;
 
 	//request
@@ -27,10 +27,10 @@ private:
 		nemo::Protocol request;
 		uintmax_t timestamp;
 	};
-
+	uintmax_t requestIndex;
 	std::map<uintmax_t, boost::shared_ptr<Request>> requestMap;
 
-	//timer
+	//todo:timer
 
 	enum TimerType {TT_NULL, TT_REQUEST, TT_SERVER};
 	struct TimerNode {
@@ -47,6 +47,36 @@ private:
 
 	//todo : timer tree
 
-	boost::shared_ptr<boost::thread> networkThread;
+	bool exitFlag;
+	boost::shared_ptr<boost::thread> workThread;
 
+	//===========================
+	const int BUF_SIZE = 0x200000; //2MB
+	int selectServer;
+	void udpLoop(void);
+	void workLogic(boost::asio::ip::udp::socket & s, boost::asio::ip::udp::endpoint & ep, char * data, int len);
+	
+public:
+	MasterServer() {
+		exitFlag = false;
+		serverIndex = 0;
+		requestIndex = 0;
+		selectServer = 0;
+	}
+
+	~MasterServer() {
+
+	}
+
+	void run(void) {
+
+	}
+
+	void debugRun(void) {
+
+	}
+
+	void halt(void) {
+
+	}
 };

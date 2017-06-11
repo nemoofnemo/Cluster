@@ -47,15 +47,15 @@ bool nemo::Protocol::match(const void * data, size_t size)
 	boost::cmatch w2;
 	boost::regex r2(R"((\w+):(\w+))");
 	bool blankLine = false;
-	puts(ptr);
-	puts("--------------");
+	//puts(ptr);
+	//puts("--------------");
 	while (boost::regex_search(ptr, w, r)) {
 		ptr = w[0].second;
 		if (w[1].length() == 0) {
 			blankLine = true;
 			break;
 		}
-		std::cout <<w[0].first << w[1] << std::endl;
+		/*std::cout <<w[0].first << w[1] << std::endl;*/
 		if (boost::regex_match(w[1].first, w[1].second, w2, r2)) {
 			dataMap.insert(std::pair<string, string>(w2[1],w2[2]));
 		}
