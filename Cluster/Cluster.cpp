@@ -1,34 +1,47 @@
 #include "Cluster.h"
 
-void nemo::MasterServer::udpLoop(void)
+using namespace boost::asio;
+
+void nemo::MasterServer::tcpLoop(void)
 {
 	boost::asio::io_service io_service;
-	boost::asio::ip::udp::socket udp_socket(io_service);
-	boost::asio::ip::udp::endpoint local_add(boost::asio::ip::address::from_string("127.0.0.1"), 6004);
-
-	udp_socket.open(local_add.protocol());
-	udp_socket.bind(local_add);
+	boost::asio::ip::tcp::acceptor acceptor(io_service, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), 6001));
 
 	char * receive_buffer = new char[BUF_SIZE];
+	memset(receive_buffer, 0, BUF_SIZE);
 	int count;
 	while (!exitFlag)
 	{
-		boost::asio::ip::udp::endpoint send_point;
-		count = udp_socket.receive_from(boost::asio::buffer(receive_buffer, BUF_SIZE), send_point);
-		std::cout << "[Receive]:" <<count <<"bytes\n" << receive_buffer << std::endl;
-		//udp_socket.send_to(boost::asio::buffer(receive_buffer, count), send_point);
-		workLogic(udp_socket, send_point, receive_buffer, count);
-		memset(receive_buffer, 0, count);
+		boost::asio::ip::tcp::socket sock(io_service);
+		acceptor.accept(sock);
+		count = sock.receive(buffer(receive_buffer, BUF_SIZE));
+		std::cout << "[Receive]:" << count << "bytes, from " << sock.remote_endpoint().address() << '\n';
+		//sock.write_some(boost::asio::buffer(receive_buffer, BUF_SIZE));
+		workLogic(sock, sock.remote_endpoint(), receive_buffer, count);
+		sock.close();
+		if(count > 0)
+			memset(receive_buffer, 0, count);
 	}
 }
 
-void nemo::MasterServer::workLogic(boost::asio::ip::udp::socket & s, boost::asio::ip::udp::endpoint & ep, char * data, int len)
+void nemo::MasterServer::workLogic(boost::asio::ip::tcp::socket & s, boost::asio::ip::tcp::endpoint & ep, char * data, int len)
 {
 	Request r;
-	if (!r.request.match(data, len)) {
+	if (r.request.match(data, len)) {
+		//register server
 		if (r.request.isExist("Cmd") && r.request["Cmd"] == "reg") {
-
+			if (r.request["Name"].size() > 0 && r.request["Port"].size() > 0) {
+				ServerNode sn;
+				sn.ep = ip::tcp::endpoint(ep.address(), atoi(r.request["Port"].c_str()));
+				sn.name = r.request["Name"];
+				serverMap.insert(std::pair<uintmax_t, ServerNode>(serverIndex, sn));
+				serverIndex++;
+			}
 		}
 	}
-
+	else {
+		//send to work server
+		
+	}
+	std::cout << data << std::endl;
 }

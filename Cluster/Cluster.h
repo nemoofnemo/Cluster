@@ -14,7 +14,7 @@ private:
 
 	struct ServerNode {
 		std::string name;
-		boost::asio::ip::udp::endpoint ep;
+		boost::asio::ip::tcp::endpoint ep;
 		uintmax_t timestamp;
 	};
 	uintmax_t serverIndex;
@@ -53,8 +53,8 @@ private:
 	//===========================
 	const int BUF_SIZE = 0x200000; //2MB
 	int selectServer;
-	void udpLoop(void);
-	void workLogic(boost::asio::ip::udp::socket & s, boost::asio::ip::udp::endpoint & ep, char * data, int len);
+	void tcpLoop(void);
+	void workLogic(boost::asio::ip::tcp::socket & s, boost::asio::ip::tcp::endpoint & ep, char * data, int len);
 	
 public:
 	MasterServer() {
@@ -73,7 +73,7 @@ public:
 	}
 
 	void debugRun(void) {
-
+		tcpLoop();
 	}
 
 	void halt(void) {
