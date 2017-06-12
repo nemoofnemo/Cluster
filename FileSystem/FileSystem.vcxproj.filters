@@ -26,5 +26,8 @@
     <ClCompile Include="FileSystem.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="VersionControl.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

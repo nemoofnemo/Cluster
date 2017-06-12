@@ -149,6 +149,7 @@
   <ItemGroup>
     <ClCompile Include="FileSystem.cpp" />
     <ClCompile Include="file_system_test.cpp" />
+    <ClCompile Include="VersionControl.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
