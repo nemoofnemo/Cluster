@@ -4,9 +4,7 @@ using namespace boost::asio;
 
 void nemo::MasterServer::tcpLoop(void)
 {
-	boost::asio::io_service io_service;
 	boost::asio::ip::tcp::acceptor acceptor(io_service, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), 6001));
-
 	char * receive_buffer = new char[BUF_SIZE];
 	memset(receive_buffer, 0, BUF_SIZE);
 	int count;
@@ -41,7 +39,17 @@ void nemo::MasterServer::workLogic(boost::asio::ip::tcp::socket & s, boost::asio
 	}
 	else {
 		//send to work server
-		
+		if (serverMap.size() > 0) {
+			ip::tcp::socket client(io_service);
+			client.connect(serverMap[selectServer].ep);
+			client.write_some(buffer(data, len));
+			char * clientData = new char[BUF_SIZE];
+			memset(clientData, 0, BUF_SIZE);
+			client.receive(buffer(clientData, BUF_SIZE));
+			s.send(buffer(clientData, BUF_SIZE));
+			selectServer++;
+			selectServer %= serverMap.size();
+		}
 	}
 	std::cout << data << std::endl;
 }

@@ -53,6 +53,7 @@ private:
 	//===========================
 	const int BUF_SIZE = 0x200000; //2MB
 	int selectServer;
+	boost::asio::io_service io_service;
 	void tcpLoop(void);
 	void workLogic(boost::asio::ip::tcp::socket & s, boost::asio::ip::tcp::endpoint & ep, char * data, int len);
 	
