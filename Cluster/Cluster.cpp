@@ -45,8 +45,9 @@ void nemo::MasterServer::workLogic(boost::asio::ip::tcp::socket & s, boost::asio
 			client.write_some(buffer(data, len));
 			char * clientData = new char[BUF_SIZE];
 			memset(clientData, 0, BUF_SIZE);
-			client.receive(buffer(clientData, BUF_SIZE));
-			s.send(buffer(clientData, BUF_SIZE));
+			int tmp_cnt = client.receive(buffer(clientData, BUF_SIZE));
+			if(tmp_cnt > 0)
+				s.send(buffer(clientData, tmp_cnt));
 			selectServer++;
 			selectServer %= serverMap.size();
 		}

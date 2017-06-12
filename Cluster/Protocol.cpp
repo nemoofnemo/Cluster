@@ -55,7 +55,7 @@ bool nemo::Protocol::match(const void * data, size_t size)
 			blankLine = true;
 			break;
 		}
-		/*std::cout <<w[0].first << w[1] << std::endl;*/
+		
 		if (boost::regex_match(w[1].first, w[1].second, w2, r2)) {
 			dataMap.insert(std::pair<string, string>(w2[1],w2[2]));
 		}

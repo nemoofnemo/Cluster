@@ -22,6 +22,7 @@ while True:
     ss, addr = s2.accept()  
     print '[Recv]:from ',addr  
     ra = ss.recv(2048)  
+    print '[length]:', len(ra) 
     print ra  
     ss.send('this is test server.')    
     ss.close()  

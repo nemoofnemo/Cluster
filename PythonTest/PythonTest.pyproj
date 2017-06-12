@@ -23,6 +23,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="PythonTest.py" />
+    <Compile Include="TCPClient.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="UDPClient.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
