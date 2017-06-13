@@ -50,7 +50,7 @@ void test2(void) {
 	fs.stop();
 }
 
-int main(void) {
+int main2(void) {
 	/*boost::filesystem::recursive_directory_iterator it(".");
 	boost::filesystem::recursive_directory_iterator end;
 	while (it != end) {		
