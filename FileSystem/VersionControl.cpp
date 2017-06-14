@@ -27,9 +27,14 @@ public:
 	}
 
 	void run(const FileSystemIO::FS_AsyncHandle_ST & ast, FileSystemIO::ErrorCode e, void * data, uintmax_t count) {
-		int sc = sock->send(buffer((char*)data, count));
-		cout << "[read]:" << sc << "bytes from " << path << endl;
-		sock->send(buffer((char*)data, sc));
+		if (count > 0) {
+			int sc = sock->send(buffer((char*)data, count));
+			cout << "[read]:" << sc << "bytes from " << path << endl;
+		}
+		else {
+			sock->send(buffer("read error"));
+		}
+		
 		if (e != FileSystemIO::ErrorCode::PENDING) {
 			delete[](char *)data;
 			sock->close();
