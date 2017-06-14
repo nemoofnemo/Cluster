@@ -8,9 +8,35 @@
 
 using namespace std;
 using namespace boost::asio;
+using namespace nemo;
 
 boost::asio::io_service service;
 const int BUF_SIZE = 0x200000;
+
+class Callback : public FileSystemIO::FileSystemIOCallback {
+public:
+	boost::asio::ip::tcp::socket * sock;
+	string path;
+
+	Callback() {
+
+	}
+
+	~Callback() {
+
+	}
+
+	void run(const FileSystemIO::FS_AsyncHandle_ST & ast, FileSystemIO::ErrorCode e, void * data, uintmax_t count) {
+		int sc = sock->send(buffer((char*)data, count));
+		cout << "[read]:" << sc << "bytes from " << path << endl;
+		sock->send(buffer((char*)data, sc));
+		if (e != FileSystemIO::ErrorCode::PENDING) {
+			delete[](char *)data;
+			sock->close();
+			delete sock;
+		}
+	}
+};
 
 void mainLoop(string ip, int port) {
 	//register
@@ -24,22 +50,41 @@ void mainLoop(string ip, int port) {
 	s1.send(buffer(str1.c_str(), str1.size()));
 	s1.close();
 	cout << "register success.\nloop start.\n";
-	getchar();
 
 	//loop
+	FileSystemIO fs;
+	fs.init();
+	fs.run();
 	boost::asio::ip::tcp::acceptor acceptor(service, boost::asio::ip::tcp::endpoint(ip::tcp::v4(), port));
 	char * receive_buffer = new char[BUF_SIZE];
 	memset(receive_buffer, 0, BUF_SIZE);
 	int count;
 	while (true) {
-		boost::asio::ip::tcp::socket sock(service);
-		acceptor.accept(sock);
-		count = sock.receive(buffer(receive_buffer, BUF_SIZE));
-		std::cout << "[Receive]:" << count << "bytes, from " << sock.remote_endpoint().address() << '\n';
+		boost::asio::ip::tcp::socket * sock = new ip::tcp::socket(service);
+		acceptor.accept(*sock);
+		count = sock->receive(buffer(receive_buffer, BUF_SIZE - 1));
+		receive_buffer[count] = 0;
+		std::cout << "[Receive]:" << count << "bytes, from " << sock->remote_endpoint().address() << '\n';
 		std::cout << receive_buffer << endl;
-		sock.send(buffer("this is file server."));
-		sock.close();
-		memset(receive_buffer, 0, BUF_SIZE);
+		string path(receive_buffer);
+		if (boost::filesystem::is_regular_file(boost::filesystem::path(path))) {			
+			FileSystemIO::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path(path));
+			FileSystemIO::FS_AsyncHandle_ST ah = fs.createAsyncHandleST(h);
+			boost::shared_ptr<Callback> cb(new Callback);
+			cb->sock = sock;
+			cb->path = path;
+			fs.asyncReadAll(ah, cb, new char[BUF_SIZE], BUF_SIZE, BUF_SIZE);
+		}
+		else {
+			sock->send(buffer("Invalid path"));
+			sock->close();
+			delete sock;
+		}
+		if(count > 0)
+			memset(receive_buffer, 0, count);
+		else {
+			memset(receive_buffer, 0, BUF_SIZE);
+		}
 	}
 
 }
