@@ -43,13 +43,30 @@ void nemo::MasterServer::workLogic(boost::asio::ip::tcp::socket & s, boost::asio
 			ip::tcp::socket client(io_service);
 			client.connect(serverMap[selectServer].ep);
 			client.write_some(buffer(data, len));
-			char * clientData = new char[BUF_SIZE];
-			memset(clientData, 0, BUF_SIZE);
-			int tmp_cnt = client.receive(buffer(clientData, BUF_SIZE));
+			char * clientData = new char[8192];
+			memset(clientData, 0, 8192);
+			int tmp_cnt = 0;
+			int index = 0;
+			/*int tmp_cnt = client.receive(buffer(clientData, BUF_SIZE));
 			if(tmp_cnt > 0)
+				s.send(buffer(clientData, tmp_cnt));*/
+			while ((tmp_cnt = client.read_some(buffer(clientData, 8192))) != 0) {
 				s.send(buffer(clientData, tmp_cnt));
+				index += tmp_cnt;
+			}
+
+			if (index == 0) {
+				s.send(buffer("from fileserver: empty file."));
+			}
+
 			selectServer++;
 			selectServer %= serverMap.size();
+
+			delete clientData;
+			client.close();
+		}
+		else {
+			std::cout << "no server" << std::endl;
 		}
 	}
 	std::cout << data << std::endl;
