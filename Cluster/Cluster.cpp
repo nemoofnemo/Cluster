@@ -54,6 +54,7 @@ void nemo::MasterServer::workLogic(boost::asio::ip::tcp::socket & s, boost::asio
 			if(tmp_cnt > 0)
 				s.send(buffer(clientData, tmp_cnt));*/
 			while ((tmp_cnt = client.read_some(buffer(clientData, 8192), error)) != 0) {
+				std::cout << "[Read]:" << tmp_cnt << "bytes\n";
 				s.send(buffer(clientData, tmp_cnt));
 				index += tmp_cnt;
 				if (error == boost::asio::error::eof)
