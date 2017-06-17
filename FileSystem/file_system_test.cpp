@@ -42,9 +42,9 @@ void test(void) {
 void test2(void) {
 	FileSystemIO fs;
 	fs.init();
-	FileSystemIO::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("test.txt"));
+	FileSystemIO::FS_Handle h = fs.createFileSystemHandle(boost::filesystem::path("D:\\Documents\\Visual Studio 2015\\WebSites\\VersionControl\\data\\1\\1\\FileSystem.h"));
 	FileSystemIO::FS_AsyncHandle_ST ah = fs.createAsyncHandleST(h);
-	fs.asyncRead(ah, boost::shared_ptr<cb>(new cb), new char[20], 20, 0, 6);
+	fs.asyncReadAll(ah, boost::shared_ptr<cb>(new cb), new char[200000], 200000, 200000);
 	fs.run();
 	boost::thread::sleep(boost::get_system_time() + boost::posix_time::seconds(4));
 	fs.stop();

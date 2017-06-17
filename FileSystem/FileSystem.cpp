@@ -171,9 +171,8 @@ void nemo::FileSystemIO::doReadAll(FS_AsyncNode & node, const int & index) {
 			st.asyncHandle = node.asyncHandle;
 			st.fileHandle = node.handle;
 			st.status = node.status;
-			//run callback only all data has been read.
-			/*if (node.callback != NULL)
-			node.callback->run(st, ErrorCode::PENDING, node.data, cnt);*/
+			if (node.callback != NULL)
+				node.callback->run(st, ErrorCode::PENDING, node.data, cnt);
 			file.close();
 			{
 				boost::lock_guard<boost::shared_mutex> lg(lock);
