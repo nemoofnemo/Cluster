@@ -20,6 +20,7 @@ void nemo::MasterServer::tcpLoop(void)
 		if(count > 0)
 			memset(receive_buffer, 0, count);
 	}
+	delete[] receive_buffer;
 }
 
 void nemo::MasterServer::workLogic(boost::asio::ip::tcp::socket & s, boost::asio::ip::tcp::endpoint & ep, char * data, int len)
@@ -45,14 +46,18 @@ void nemo::MasterServer::workLogic(boost::asio::ip::tcp::socket & s, boost::asio
 			client.write_some(buffer(data, len));
 			char * clientData = new char[8192];
 			memset(clientData, 0, 8192);
+			
 			int tmp_cnt = 0;
 			int index = 0;
+			boost::system::error_code error;
 			/*int tmp_cnt = client.receive(buffer(clientData, BUF_SIZE));
 			if(tmp_cnt > 0)
 				s.send(buffer(clientData, tmp_cnt));*/
-			while ((tmp_cnt = client.read_some(buffer(clientData, 8192))) != 0) {
+			while ((tmp_cnt = client.read_some(buffer(clientData, 8192), error)) != 0) {
 				s.send(buffer(clientData, tmp_cnt));
 				index += tmp_cnt;
+				if (error == boost::asio::error::eof)
+					break;
 			}
 
 			if (index == 0) {
@@ -62,7 +67,7 @@ void nemo::MasterServer::workLogic(boost::asio::ip::tcp::socket & s, boost::asio
 			selectServer++;
 			selectServer %= serverMap.size();
 
-			delete clientData;
+			delete[] clientData;
 			client.close();
 		}
 		else {
