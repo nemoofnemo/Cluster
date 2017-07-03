@@ -68,6 +68,6 @@ int main2(void) {
 	f.write(temp, 5);
 	f.close();*/
 	//test();
-	test2();
+	test2(); 
 	return 0;
 }
