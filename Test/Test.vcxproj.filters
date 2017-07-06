@@ -19,4 +19,15 @@
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\packages\VisualLeakDetector.2.5.0.0\lib\native\include\vld.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\packages\VisualLeakDetector.2.5.0.0\lib\native\include\vld_def.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
