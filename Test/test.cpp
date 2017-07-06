@@ -12,11 +12,26 @@
 using namespace std;
 //using namespace boost;
 //using namespace boost::asio;
-#include "vld.h"
+//#include "vld.h"
+
+class A {
+public:
+	int a;
+	A() {
+		cout << "con" << endl;
+	}
+
+	~A() {
+		cout << "dec" << endl;
+	}
+};
 
 
 int main(void) {
-	int * pt = new int;
-	system("pause");
+	char * data = new char[256];
+	A * p = new(data) A;
+	cout << (void*)data << ' ' << p << ' ' << sizeof(A) << endl;
+	p->~A();
+	delete[] data;
 	return 0;
 }
