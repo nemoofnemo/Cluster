@@ -50,8 +50,13 @@ int binFind(int * a, int length, int val) {
 	return -1;
 }
 
+struct XX {
+	int a;
+	int b;
+};
+
 int main(void) {
-	int arr[] = {1,2,3,4,5,6,7,8};
-	cout << binFind(arr, 8, 8) << endl;
+	XX x = {1,2};
+	cout << x.a;
 	return 0;
 }
