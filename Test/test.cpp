@@ -31,10 +31,11 @@ public:
 };
 
 int binFind(int * a, int length, int val) {
-	int mid = (length - 1) / 2;
+	int mid = 0;
 	int start = 0;
 	int end = length - 1;
-	while (end - 1 > start) {
+	while (end >= start) {
+		mid = (start + end) / 2;
 		if (a[mid] == val) {
 			return mid;
 		}
@@ -44,17 +45,13 @@ int binFind(int * a, int length, int val) {
 		else {
 			end = mid - 1;
 		}
+		cout << start << ' ' << end << endl;
 	}
 	return -1;
 }
 
 int main(void) {
-	char * data = new char[256];
-	A * p = new(data) A;
-	cout << (void*)data << ' ' << p << ' ' << sizeof(A) << endl;
-	p->~A();
-	delete[] data;
-	p->operator[](1);
-	(*p)[1];
+	int arr[] = {1,2,3,4,5,6,7,8};
+	cout << binFind(arr, 8, 8) << endl;
 	return 0;
 }
